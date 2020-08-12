@@ -1,0 +1,5 @@
+
+compile.txt
+build/
+\!Proto/
+*.pyc
