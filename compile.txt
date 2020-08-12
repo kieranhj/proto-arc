@@ -1,0 +1,1388 @@
+F00:0001       ; ============================================================================
+F00:0002       ; Prototype Framework - stripped back from stniccc-archie.
+F00:0003       ; ============================================================================
+F00:0004       
+F00:0005       .equ _DEBUG, 1
+F00:0006       .equ _ENABLE_MUSIC, 1
+F00:0007       .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
+F00:0008       .equ _SYNC_EDITOR, 1
+F00:0009       
+F00:0010       .equ Screen_Banks, 3
+F00:0011       .equ Screen_Mode, 9
+F00:0012       .equ Screen_Width, 320
+F00:0013       .equ Screen_Height, 256
+F00:0014       .equ Window_Width, 256
+F00:0015       .equ Window_Height, 200
+F00:0016       .equ Screen_Stride, Screen_Width/2		; 4bpp
+F00:0017       .equ Screen_Bytes, Screen_Stride*Screen_Height
+F00:0018       .equ Window_Stride, Screen_Width/2		; 4bpp
+F00:0019       .equ Window_Bytes, Window_Stride*Window_Height
+F00:0020       
+F00:0021       .include "lib/swis.h.asm"
+F01:0001       .equ OS_WriteC, 0
+F01:0002       .equ OS_WriteO, 2
+F01:0003       .equ OS_NewLine, 3
+F01:0004       .equ OS_Byte, 6
+F01:0005       .equ XOS_Byte, OS_Byte | (1 << 17)
+F01:0006       .equ OS_Word, 7
+F01:0007       .equ XOS_Word, OS_Word | (1 << 17)
+F01:0008       .equ OS_File, 8
+F01:0009       .equ OS_Exit, 0x11
+F01:0010       .equ OS_BreakPt, 0x17
+F01:0011       .equ OS_ChangeDynamicArea, 0x2a
+F01:0012       .equ OS_GenerateError, 0x2b
+F01:0013       .equ OS_ReadVduVariables, 0x31
+F01:0014       .equ OS_ReadMonotonicTime, 0x42
+F01:0015       .equ OS_ReadDynamicArea, 0x5c
+F01:0016       .equ OS_ConvertHex2, 0xd1
+F01:0017       .equ OS_ConvertHex4, 0xd2
+F01:0018       .equ OS_ConvertHex8, 0xd4
+F01:0019       .equ OS_ConvertCardinal1, 0xd5	
+F01:0020       .equ OS_ConvertCardinal4, 0xd8
+F01:0021       
+F01:0022       .equ OSByte_EventEnable, 14
+F01:0023       .equ OSByte_EventDisable, 13
+F01:0024       .equ OSByte_Vsync, 19
+F01:0025       .equ OSByte_WriteVDUBank, 112
+F01:0026       .equ OSByte_WriteDisplayBank, 113
+F01:0027       .equ OSByte_ReadKey, 129
+F01:0028       
+F01:0029       .equ OSWord_WritePalette, 12
+F01:0030       
+F01:0031       .equ IKey_LeftClick, 0xf6
+F01:0032       .equ IKey_RightClick, 0xf4
+F01:0033       .equ IKey_Space, 0x9d
+F01:0034       .equ IKey_Escape, 0x8f
+F01:0035       
+F01:0036       .equ DynArea_Screen, 2
+F01:0037       
+F01:0038       .equ VD_ScreenStart, 148 
+F01:0039       
+F01:0040       .equ OS_Claim, 0x1f
+F01:0041       .equ OS_Release, 0x20
+F01:0042       .equ OS_AddToVector, 0x47
+F01:0043       
+F01:0044       .equ ErrorV, 0x01
+F01:0045       .equ EventV, 0x10
+F01:0046       .equ Event_VSync, 4
+F01:0047       
+F01:0048       .equ QTM_Load, 0x47E40
+F01:0049       .equ QTM_Start, 0x47E41
+F01:0050       .equ QTM_Stop, 0x47E42
+F01:0051       .equ QTM_Pause, 0x47E43
+F01:0052       .equ QTM_SetSampleSpeed, 0x47E49
+F01:0053       .equ QTM_Pos, 0x47E46
+F01:0054       
+F00:0022       
+F00:0023       .org 0x8000
+F00:0024       
+F00:0025       ; ============================================================================
+F00:0026       ; Stack
+F00:0027       ; ============================================================================
+F00:0028       
+F00:0029       Start:
+F00:0030           adrl sp, stack_base
+               S01:00008000:  01 DB 8F E2 04 D0 8D E2
+F00:0031       	B main
+               S01:00008008:  FF 00 00 EA
+F00:0032       
+F00:0033       .skip 1024
+F00:0034       stack_base:
+F00:0035       
+F00:0036       ; ============================================================================
+F00:0037       ; Main
+F00:0038       ; ============================================================================
+F00:0039       
+F00:0040       main:
+F00:0041       	MOV r0,#22	;Set MODE
+               S01:0000840C:  16 00 A0 E3
+F00:0042       	SWI OS_WriteC
+               S01:00008410:  00 00 00 EF
+F00:0043       	MOV r0,#Screen_Mode
+               S01:00008414:  09 00 A0 E3
+F00:0044       	SWI OS_WriteC
+               S01:00008418:  00 00 00 EF
+F00:0045       
+F00:0046       	; Set screen size for number of buffers
+F00:0047       	MOV r0, #DynArea_Screen
+               S01:0000841C:  02 00 A0 E3
+F00:0048       	SWI OS_ReadDynamicArea
+               S01:00008420:  5C 00 00 EF
+F00:0049       	MOV r0, #DynArea_Screen
+               S01:00008424:  02 00 A0 E3
+F00:0050       	MOV r2, #Screen_Bytes * Screen_Banks
+               S01:00008428:  1E 2A A0 E3
+F00:0051       	SUBS r1, r2, r1
+               S01:0000842C:  01 10 52 E0
+F00:0052       	SWI OS_ChangeDynamicArea
+               S01:00008430:  2A 00 00 EF
+F00:0053       	MOV r0, #DynArea_Screen
+               S01:00008434:  02 00 A0 E3
+F00:0054       	SWI OS_ReadDynamicArea
+               S01:00008438:  5C 00 00 EF
+F00:0055       	CMP r1, #Screen_Bytes * Screen_Banks
+               S01:0000843C:  1E 0A 51 E3
+F00:0056       	ADRCC r0, error_noscreenmem
+               S01:00008440:  01 0C 8F 32
+F00:0057       	SWICC OS_GenerateError
+               S01:00008444:  2B 00 00 3F
+F00:0058       
+F00:0059       	MOV r0,#23	;Disable cursor
+               S01:00008448:  17 00 A0 E3
+F00:0060       	SWI OS_WriteC
+               S01:0000844C:  00 00 00 EF
+F00:0061       	MOV r0,#1
+               S01:00008450:  01 00 A0 E3
+F00:0062       	SWI OS_WriteC
+               S01:00008454:  00 00 00 EF
+F00:0063       	MOV r0,#0
+               S01:00008458:  00 00 A0 E3
+F00:0064       	SWI OS_WriteC
+               S01:0000845C:  00 00 00 EF
+F00:0065       	SWI OS_WriteC
+               S01:00008460:  00 00 00 EF
+F00:0066       	SWI OS_WriteC
+               S01:00008464:  00 00 00 EF
+F00:0067       	SWI OS_WriteC
+               S01:00008468:  00 00 00 EF
+F00:0068       	SWI OS_WriteC
+               S01:0000846C:  00 00 00 EF
+F00:0069       	SWI OS_WriteC
+               S01:00008470:  00 00 00 EF
+F00:0070       	SWI OS_WriteC
+               S01:00008474:  00 00 00 EF
+F00:0071       	SWI OS_WriteC
+               S01:00008478:  00 00 00 EF
+F00:0072       
+F00:0073       	; LOAD STUFF HERE!
+F00:0074       
+F00:0075       .if _ENABLE_MUSIC
+F00:0076       	; Load module
+F00:0077       	adrl r0, module_filename
+               S01:0000847C:  05 0C 8F E2 08 00 80 E2
+F00:0078       	mov r1, #0
+               S01:00008484:  00 10 A0 E3
+F00:0079       	swi QTM_Load
+               S01:00008488:  40 7E 04 EF
+F00:0080       
+F00:0081       	mov r0, #48
+               S01:0000848C:  30 00 A0 E3
+F00:0082       	swi QTM_SetSampleSpeed
+               S01:00008490:  49 7E 04 EF
+F00:0083       .endif
+F00:0084       
+F00:0085       	; Clear all screen buffers
+F00:0086       	mov r1, #1
+               S01:00008494:  01 10 A0 E3
+F00:0087       .1:
+F00:0088       	str r1, scr_bank
+               S01:00008498:  5C 12 8F E5
+F00:0089       
+F00:0090       	; CLS bank N
+F00:0091       	mov r0, #OSByte_WriteVDUBank
+               S01:0000849C:  70 00 A0 E3
+F00:0092       	swi OS_Byte
+               S01:000084A0:  06 00 00 EF
+F00:0093       	mov r0, #12
+               S01:000084A4:  0C 00 A0 E3
+F00:0094       	SWI OS_WriteC
+               S01:000084A8:  00 00 00 EF
+F00:0095       
+F00:0096       	ldr r1, scr_bank
+               S01:000084AC:  48 12 9F E5
+F00:0097       	add r1, r1, #1
+               S01:000084B0:  01 10 81 E2
+F00:0098       	cmp r1, #Screen_Banks
+               S01:000084B4:  03 00 51 E3
+F00:0099       	ble .1
+               S01:000084B8:  F6 FF FF DA
+F00:0100       
+F00:0101       	; Start with bank 1
+F00:0102       	mov r1, #1
+               S01:000084BC:  01 10 A0 E3
+F00:0103       	str r1, scr_bank
+               S01:000084C0:  34 12 8F E5
+F00:0104       	
+F00:0105       	; Claim the Error vector
+F00:0106       	MOV r0, #ErrorV
+               S01:000084C4:  01 00 A0 E3
+F00:0107       	ADR r1, error_handler
+               S01:000084C8:  91 1F 8F E2
+F00:0108       	MOV r2, #0
+               S01:000084CC:  00 20 A0 E3
+F00:0109       	SWI OS_Claim
+               S01:000084D0:  1F 00 00 EF
+F00:0110       
+F00:0111       	; Claim the Event vector
+F00:0112       	mov r0, #EventV
+               S01:000084D4:  10 00 A0 E3
+F00:0113       	adr r1, event_handler
+               S01:000084D8:  59 1F 8F E2
+F00:0114       	mov r2, #0
+               S01:000084DC:  00 20 A0 E3
+F00:0115       	swi OS_AddToVector
+               S01:000084E0:  47 00 00 EF
+F00:0116       
+F00:0117       	; LATE INITALISATION HERE!
+F00:0118       
+F00:0119       	; Sync tracker.
+F00:0120       	bl rocket_init
+               S01:000084E4:  AD 00 00 EB
+F00:0121       	bl rocket_start
+               S01:000084E8:  AD 00 00 EB
+F00:0122       
+F00:0123       	; Enable Vsync event
+F00:0124       	mov r0, #OSByte_EventEnable
+               S01:000084EC:  0E 00 A0 E3
+F00:0125       	mov r1, #Event_VSync
+               S01:000084F0:  04 10 A0 E3
+F00:0126       	SWI OS_Byte
+               S01:000084F4:  06 00 00 EF
+F00:0127       
+F00:0128       main_loop:
+F00:0129       
+F00:0130       	; Block if we've not even had a vsync since last time - we're >50Hz!
+F00:0131       	ldr r1, last_vsync
+               S01:000084F8:  08 12 9F E5
+F00:0132       .1:
+F00:0133       	ldr r2, vsync_count
+               S01:000084FC:  00 22 9F E5
+F00:0134       	cmp r1, r2
+               S01:00008500:  02 00 51 E1
+F00:0135       	beq .1
+               S01:00008504:  FC FF FF 0A
+F00:0136       	.if _FIX_FRAME_RATE
+F00:0137       	mov r0, #1
+F00:0138       	.else
+F00:0139       	sub r0, r2, r1
+               S01:00008508:  01 00 42 E0
+F00:0140       	.endif
+F00:0141       	str r2, last_vsync
+               S01:0000850C:  F4 21 8F E5
+F00:0142       
+F00:0143       	; R0 = vsync delta since last frame.
+F00:0144       	bl rocket_update
+               S01:00008510:  A7 00 00 EB
+F00:0145       
+F00:0146       	; show debug
+F00:0147       	.if _DEBUG
+F00:0148       	bl debug_write_vsync_count
+               S01:00008514:  16 00 00 EB
+F00:0149       	.endif
+F00:0150       
+F00:0151       	; DO STUFF HERE!
+F00:0152       	bl get_next_screen_for_writing
+               S01:00008518:  93 00 00 EB
+F00:0153       	mov r0, #0
+               S01:0000851C:  00 00 A0 E3
+F00:0154       	bl rocket_sync_get_val_hi
+               S01:00008520:  C4 00 00 EB
+F00:0155       	bl show_screen_at_vsync
+               S01:00008524:  8B 00 00 EB
+F00:0156       
+F00:0157       	; exit if Escape is pressed
+F00:0158       	MOV r0, #OSByte_ReadKey
+               S01:00008528:  81 00 A0 E3
+F00:0159       	MOV r1, #IKey_Escape
+               S01:0000852C:  8F 10 A0 E3
+F00:0160       	MOV r2, #0xff
+               S01:00008530:  FF 20 A0 E3
+F00:0161       	SWI OS_Byte
+               S01:00008534:  06 00 00 EF
+F00:0162       	
+F00:0163       	CMP r1, #0xff
+               S01:00008538:  FF 00 51 E3
+F00:0164       	CMPEQ r2, #0xff
+               S01:0000853C:  FF 00 52 03
+F00:0165       	BEQ exit
+               S01:00008540:  29 00 00 0A
+F00:0166       	
+F00:0167       	b main_loop
+               S01:00008544:  EB FF FF EA
+F00:0168       
+F00:0169       error_noscreenmem:
+F00:0170       	.long 0
+               S01:00008548:  00 00 00 00
+F00:0171       	.byte "Cannot allocate screen memory!"
+               S01:0000854C:  43 61 6E 6E 6F 74 20 61 6C 6C 6F 63 61 74 65 20
+               S01:0000855C:  73 63 72 65 65 6E 20 6D 65 6D 6F 72 79 21
+F00:0172       	.align 4
+F00:0173       	.long 0
+               S01:00008570:  00 00 00 00
+F00:0174       
+F00:0175       .if _DEBUG
+F00:0176       debug_write_vsync_count:
+F00:0177       	mov r0, #30
+               S01:00008574:  1E 00 A0 E3
+F00:0178       	swi OS_WriteC
+               S01:00008578:  00 00 00 EF
+F00:0179       
+F00:0180       .if _ENABLE_MUSIC
+F00:0181           ; read current tracker position
+F00:0182           mov r0, #-1
+               S01:0000857C:  00 00 E0 E3
+F00:0183           mov r1, #-1
+               S01:00008580:  00 10 E0 E3
+F00:0184           swi QTM_Pos
+               S01:00008584:  46 7E 04 EF
+F00:0185       
+F00:0186       	mov r3, r1
+               S01:00008588:  01 30 A0 E1
+F00:0187       
+F00:0188       	adr r1, debug_string
+               S01:0000858C:  28 10 8F E2
+F00:0189       	mov r2, #8
+               S01:00008590:  08 20 A0 E3
+F00:0190       	swi OS_ConvertHex2
+               S01:00008594:  D1 00 00 EF
+F00:0191       	adr r0, debug_string
+               S01:00008598:  1C 00 8F E2
+F00:0192       	swi OS_WriteO
+               S01:0000859C:  02 00 00 EF
+F00:0193       
+F00:0194       	mov r0, r3
+               S01:000085A0:  03 00 A0 E1
+F00:0195       	adr r1, debug_string
+               S01:000085A4:  10 10 8F E2
+F00:0196       	mov r2, #8
+               S01:000085A8:  08 20 A0 E3
+F00:0197       	swi OS_ConvertHex2
+               S01:000085AC:  D1 00 00 EF
+F00:0198       	adr r0, debug_string
+               S01:000085B0:  04 00 8F E2
+F00:0199       	swi OS_WriteO
+               S01:000085B4:  02 00 00 EF
+F00:0200       .else
+F00:0201       	ldr r0, rocket_sync_time
+F00:0202       	adr r1, debug_string
+F00:0203       	mov r2, #8
+F00:0204       	swi OS_ConvertHex4
+F00:0205       
+F00:0206       	adr r0, debug_string
+F00:0207       	swi OS_WriteO
+F00:0208       .endif
+F00:0209       	mov pc, r14
+               S01:000085B8:  0E F0 A0 E1
+F00:0210       
+F00:0211       debug_string:
+F00:0212       	.skip 8
+F00:0213       .endif
+F00:0214       
+F00:0215       get_screen_addr:
+F00:0216       	str lr, [sp, #-4]!
+               S01:000085C4:  04 E0 2D E5
+F00:0217       	adrl r0, screen_addr_input
+               S01:000085C8:  00 00 8F E2 10 00 80 E2
+F00:0218       	adrl r1, screen_addr
+               S01:000085D0:  00 10 8F E2 10 10 81 E2
+F00:0219       	swi OS_ReadVduVariables
+               S01:000085D8:  31 00 00 EF
+F00:0220       	ldr pc, [sp], #4
+               S01:000085DC:  04 F0 9D E4
+F00:0221       	
+F00:0222       screen_addr_input:
+F00:0223       	.long VD_ScreenStart, -1
+               S01:000085E0:  94 00 00 00
+               S01:000085E4:  FF FF FF FF
+F00:0224       
+F00:0225       screen_addr:
+F00:0226       	.long 0					; ptr to the current VIDC screen bank being written to.
+               S01:000085E8:  00 00 00 00
+F00:0227       
+F00:0228       exit:	
+F00:0229       	; wait for vsync (any pending buffers)
+F00:0230       	mov r0, #19
+               S01:000085EC:  13 00 A0 E3
+F00:0231       	swi OS_Byte
+               S01:000085F0:  06 00 00 EF
+F00:0232       
+F00:0233       .if _ENABLE_MUSIC
+F00:0234       	; disable music
+F00:0235       	mov r0, #0
+               S01:000085F4:  00 00 A0 E3
+F00:0236       	swi QTM_Stop
+               S01:000085F8:  42 7E 04 EF
+F00:0237       .endif
+F00:0238       
+F00:0239       	; disable vsync event
+F00:0240       	mov r0, #OSByte_EventDisable
+               S01:000085FC:  0D 00 A0 E3
+F00:0241       	mov r1, #Event_VSync
+               S01:00008600:  04 10 A0 E3
+F00:0242       	swi OS_Byte
+               S01:00008604:  06 00 00 EF
+F00:0243       
+F00:0244       	; release our event handler
+F00:0245       	mov r0, #EventV
+               S01:00008608:  10 00 A0 E3
+F00:0246       	adr r1, event_handler
+               S01:0000860C:  30 10 8F E2
+F00:0247       	mov r2, #0
+               S01:00008610:  00 20 A0 E3
+F00:0248       	swi OS_Release
+               S01:00008614:  20 00 00 EF
+F00:0249       
+F00:0250       	; release our error handler
+F00:0251       	mov r0, #ErrorV
+               S01:00008618:  01 00 A0 E3
+F00:0252       	adr r1, error_handler
+               S01:0000861C:  F0 10 8F E2
+F00:0253       	mov r2, #0
+               S01:00008620:  00 20 A0 E3
+F00:0254       	swi OS_Release
+               S01:00008624:  20 00 00 EF
+F00:0255       
+F00:0256       	; Display whichever bank we've just written to
+F00:0257       	mov r0, #OSByte_WriteDisplayBank
+               S01:00008628:  71 00 A0 E3
+F00:0258       	ldr r1, scr_bank
+               S01:0000862C:  C8 10 9F E5
+F00:0259       	swi OS_Byte
+               S01:00008630:  06 00 00 EF
+F00:0260       	; and write to it
+F00:0261       	mov r0, #OSByte_WriteVDUBank
+               S01:00008634:  70 00 A0 E3
+F00:0262       	ldr r1, scr_bank
+               S01:00008638:  BC 10 9F E5
+F00:0263       	swi OS_Byte
+               S01:0000863C:  06 00 00 EF
+F00:0264       
+F00:0265       	SWI OS_Exit
+               S01:00008640:  11 00 00 EF
+F00:0266       
+F00:0267       ; R0=event number
+F00:0268       event_handler:
+F00:0269       	cmp r0, #Event_VSync
+               S01:00008644:  04 00 50 E3
+F00:0270       	movnes pc, r14
+               S01:00008648:  0E F0 B0 11
+F00:0271       
+F00:0272       	STMDB sp!, {r0-r1, lr}
+               S01:0000864C:  03 40 2D E9
+F00:0273       
+F00:0274       	; update the vsync counter
+F00:0275       	LDR r0, vsync_count
+               S01:00008650:  AC 00 9F E5
+F00:0276       	ADD r0, r0, #1
+               S01:00008654:  01 00 80 E2
+F00:0277       	STR r0, vsync_count
+               S01:00008658:  A4 00 8F E5
+F00:0278       
+F00:0279       	; is there a new screen buffer ready to display?
+F00:0280       	LDR r1, buffer_pending
+               S01:0000865C:  A8 10 9F E5
+F00:0281       	CMP r1, #0
+               S01:00008660:  00 00 51 E3
+F00:0282       	LDMEQIA sp!, {r0-r1, pc}
+               S01:00008664:  03 80 BD 08
+F00:0283       
+F00:0284       	; set the display buffer
+F00:0285       	MOV r0, #0
+               S01:00008668:  00 00 A0 E3
+F00:0286       	STR r0, buffer_pending
+               S01:0000866C:  98 00 8F E5
+F00:0287       	MOV r0, #OSByte_WriteDisplayBank
+               S01:00008670:  71 00 A0 E3
+F00:0288       
+F00:0289       	; some SVC stuff I don't understand :)
+F00:0290       	STMDB sp!, {r2-r12}
+               S01:00008674:  FC 1F 2D E9
+F00:0291       	MOV r9, pc     ;Save old mode
+               S01:00008678:  0F 90 A0 E1
+F00:0292       	ORR r8, r9, #3 ;SVC mode
+               S01:0000867C:  03 80 89 E3
+F00:0293       	TEQP r8, #0
+               S01:00008680:  00 F0 38 E3
+F00:0294       	MOV r0,r0
+               S01:00008684:  00 00 A0 E1
+F00:0295       	STR lr, [sp, #-4]!
+               S01:00008688:  04 E0 2D E5
+F00:0296       	SWI XOS_Byte
+               S01:0000868C:  06 00 02 EF
+F00:0297       
+F00:0298       	; set full palette if there is a pending palette block
+F00:0299       	ldr r2, palette_pending
+               S01:00008690:  78 20 9F E5
+F00:0300       	cmp r2, #0
+               S01:00008694:  00 00 52 E3
+F00:0301       	beq .4
+               S01:00008698:  12 00 00 0A
+F00:0302       
+F00:0303           adr r1, palette_osword_block
+               S01:0000869C:  BF 1F 8F E2
+F00:0304           mov r0, #16
+               S01:000086A0:  10 00 A0 E3
+F00:0305           strb r0, [r1, #1]       ; physical colour
+               S01:000086A4:  01 00 C1 E5
+F00:0306       
+F00:0307           mov r3, #0
+               S01:000086A8:  00 30 A0 E3
+F00:0308           .3:
+F00:0309           strb r3, [r1, #0]       ; logical colour
+               S01:000086AC:  00 30 C1 E5
+F00:0310       
+F00:0311           ldr r4, [r2], #4        ; rgbx
+               S01:000086B0:  04 40 92 E4
+F00:0312           and r0, r4, #0xff
+               S01:000086B4:  FF 00 04 E2
+F00:0313           strb r0, [r1, #2]       ; red
+               S01:000086B8:  02 00 C1 E5
+F00:0314           mov r0, r4, lsr #8
+               S01:000086BC:  24 04 A0 E1
+F00:0315           strb r0, [r1, #3]       ; green
+               S01:000086C0:  03 00 C1 E5
+F00:0316           mov r0, r4, lsr #16
+               S01:000086C4:  24 08 A0 E1
+F00:0317           strb r0, [r1, #4]       ; blue
+               S01:000086C8:  04 00 C1 E5
+F00:0318           mov r0, #12
+               S01:000086CC:  0C 00 A0 E3
+F00:0319           swi XOS_Word
+               S01:000086D0:  07 00 02 EF
+F00:0320       
+F00:0321           add r3, r3, #1
+               S01:000086D4:  01 30 83 E2
+F00:0322           cmp r3, #16
+               S01:000086D8:  10 00 53 E3
+F00:0323           blt .3
+               S01:000086DC:  F2 FF FF BA
+F00:0324       
+F00:0325       	mov r0, #0
+               S01:000086E0:  00 00 A0 E3
+F00:0326       	str r0, palette_pending
+               S01:000086E4:  24 00 8F E5
+F00:0327       .4:
+F00:0328       
+F00:0329       	LDR lr, [sp], #4
+               S01:000086E8:  04 E0 9D E4
+F00:0330       	TEQP r9, #0    ;Restore old mode
+               S01:000086EC:  00 F0 39 E3
+F00:0331       	MOV r0, r0
+               S01:000086F0:  00 00 A0 E1
+F00:0332       	LDMIA sp!, {r2-r12}
+               S01:000086F4:  FC 1F BD E8
+F00:0333       	LDMIA sp!, {r0-r1, pc}
+               S01:000086F8:  03 80 BD E8
+F00:0334       
+F00:0335       ; TODO: rename these to be clearer.
+F00:0336       scr_bank:
+F00:0337       	.long 0				; current VIDC screen bank being written to.
+               S01:000086FC:  00 00 00 00
+F00:0338       
+F00:0339       palette_block_addr:
+F00:0340       	.long 0				; (optional) ptr to a block of palette data for the screen bank being written to.
+               S01:00008700:  00 00 00 00
+F00:0341       
+F00:0342       vsync_count:
+F00:0343       	.long 0				; current vsync count from start of exe.
+               S01:00008704:  00 00 00 00
+F00:0344       
+F00:0345       last_vsync:
+F00:0346       	.long 0				; vsync count at start of previous frame.
+               S01:00008708:  00 00 00 00
+F00:0347       
+F00:0348       buffer_pending:
+F00:0349       	.long 0				; screen bank number to display at vsync.
+               S01:0000870C:  00 00 00 00
+F00:0350       
+F00:0351       palette_pending:
+F00:0352       	.long 0				; (optional) ptr to a block of palette data to set at vsync.
+               S01:00008710:  00 00 00 00
+F00:0353       
+F00:0354       error_handler:
+F00:0355       	STMDB sp!, {r0-r2, lr}
+               S01:00008714:  07 40 2D E9
+F00:0356       	MOV r0, #OSByte_EventDisable
+               S01:00008718:  0D 00 A0 E3
+F00:0357       	MOV r1, #Event_VSync
+               S01:0000871C:  04 10 A0 E3
+F00:0358       	SWI OS_Byte
+               S01:00008720:  06 00 00 EF
+F00:0359       	MOV r0, #EventV
+               S01:00008724:  10 00 A0 E3
+F00:0360       	ADR r1, event_handler
+               S01:00008728:  EC 10 4F E2
+F00:0361       	mov r2, #0
+               S01:0000872C:  00 20 A0 E3
+F00:0362       	SWI OS_Release
+               S01:00008730:  20 00 00 EF
+F00:0363       	MOV r0, #ErrorV
+               S01:00008734:  01 00 A0 E3
+F00:0364       	ADR r1, error_handler
+               S01:00008738:  2C 10 4F E2
+F00:0365       	MOV r2, #0
+               S01:0000873C:  00 20 A0 E3
+F00:0366       	SWI OS_Release
+               S01:00008740:  20 00 00 EF
+F00:0367       	MOV r0, #OSByte_WriteDisplayBank
+               S01:00008744:  71 00 A0 E3
+F00:0368       	LDR r1, scr_bank
+               S01:00008748:  54 10 1F E5
+F00:0369       	SWI OS_Byte
+               S01:0000874C:  06 00 00 EF
+F00:0370       	LDMIA sp!, {r0-r2, lr}
+               S01:00008750:  07 40 BD E8
+F00:0371       	MOVS pc, lr
+               S01:00008754:  0E F0 B0 E1
+F00:0372       
+F00:0373       show_screen_at_vsync:
+F00:0374       	; Show current bank at next vsync
+F00:0375       	ldr r1, scr_bank
+               S01:00008758:  64 10 1F E5
+F00:0376       	str r1, buffer_pending
+               S01:0000875C:  58 10 0F E5
+F00:0377       	; Including its associated palette
+F00:0378       	ldr r1, palette_block_addr
+               S01:00008760:  68 10 1F E5
+F00:0379       	str r1, palette_pending
+               S01:00008764:  5C 10 0F E5
+F00:0380       	mov pc, lr
+               S01:00008768:  0E F0 A0 E1
+F00:0381       
+F00:0382       get_next_screen_for_writing:
+F00:0383       	; Increment to next bank for writing
+F00:0384       	ldr r1, scr_bank
+               S01:0000876C:  78 10 1F E5
+F00:0385       	add r1, r1, #1
+               S01:00008770:  01 10 81 E2
+F00:0386       	cmp r1, #Screen_Banks
+               S01:00008774:  03 00 51 E3
+F00:0387       	movgt r1, #1
+               S01:00008778:  01 10 A0 C3
+F00:0388       	str r1, scr_bank
+               S01:0000877C:  88 10 0F E5
+F00:0389       
+F00:0390       	; Now set the screen bank to write to
+F00:0391       	mov r0, #OSByte_WriteVDUBank
+               S01:00008780:  70 00 A0 E3
+F00:0392       	swi OS_Byte
+               S01:00008784:  06 00 00 EF
+F00:0393       
+F00:0394       	; Back buffer address for writing bank stored at screen_addr
+F00:0395       	b get_screen_addr
+               S01:00008788:  8D FF FF EA
+F00:0396       
+F00:0397       ; ============================================================================
+F00:0398       ; Additional code modules
+F00:0399       ; ============================================================================
+F00:0400       
+F00:0401       .include "lib/rocket.asm"
+F02:0001       ; ============================================================================
+F02:0002       ; Rocket sync
+F02:0003       ; ============================================================================
+F02:0004       
+F02:0005       .equ Pattern_Max, 23                ; TODO: automate from MOD file.
+F02:0006       .equ Tracks_Max, 5                  ; TODO: automate from tracks_list file.
+F02:0007       
+F02:0008       rocket_sync_time:
+F02:0009       	.long 0
+               S01:0000878C:  00 00 00 00
+F02:0010       
+F02:0011       audio_is_playing:
+F02:0012       	.long 0
+               S01:00008790:  00 00 00 00
+F02:0013       
+F02:0014       .if _SYNC_EDITOR
+F02:0015       
+F02:0016       podule3_base:
+F02:0017           .long 0x300C000
+               S01:00008794:  00 C0 00 03
+F02:0018       
+F02:0019       podule3_audio_is_playing:
+F02:0020           .long 0x300FFFC
+               S01:00008798:  FC FF 00 03
+F02:0021       
+F02:0022       podule3_vsync_count:
+F02:0023           .long 0x300FFF8
+               S01:0000879C:  F8 FF 00 03
+F02:0024       
+F02:0025       ; All initialisation done by the Podule in Editor mode.
+F02:0026       rocket_init:
+F02:0027           mov pc, lr
+               S01:000087A0:  0E F0 A0 E1
+F02:0028       
+F02:0029       ; Start in Editor mode.
+F02:0030       rocket_start:
+F02:0031       	str lr, [sp, #-4]!			; push lr on stack
+               S01:000087A4:  04 E0 2D E5
+F02:0032           mov r0, #0
+               S01:000087A8:  00 00 A0 E3
+F02:0033           bl rocket_set_audio_playing ; pause playback
+               S01:000087AC:  2B 00 00 EB
+F02:0034           ldr pc, [sp], #4
+               S01:000087B0:  04 F0 9D E4
+F02:0035       
+F02:0036       ; R0 = vsync delta since last update
+F02:0037       rocket_update:
+F02:0038       	str lr, [sp, #-4]!			; push lr on stack
+               S01:000087B4:  04 E0 2D E5
+F02:0039           mov r10, r0
+               S01:000087B8:  00 A0 A0 E1
+F02:0040       	bl rocket_get_audio_is_playing
+               S01:000087BC:  24 00 00 EB
+F02:0041       	ldr r1, audio_is_playing
+               S01:000087C0:  38 10 1F E5
+F02:0042       	cmp r1, r0
+               S01:000087C4:  00 00 51 E1
+F02:0043       	beq .5
+               S01:000087C8:  07 00 00 0A
+F02:0044       	; toggle audio state
+F02:0045       	cmp r0, #0
+               S01:000087CC:  00 00 50 E3
+F02:0046           .if _ENABLE_MUSIC
+F02:0047       	swieq QTM_Pause			    ; pause
+               S01:000087D0:  43 7E 04 0F
+F02:0048           .endif
+F02:0049       	beq .5
+               S01:000087D4:  04 00 00 0A
+F02:0050       	; vsync_to_row
+F02:0051       	ldr r0, rocket_sync_time
+               S01:000087D8:  54 00 1F E5
+F02:0052       	bl rocket_sync_time_to_music_pos
+               S01:000087DC:  2A 00 00 EB
+F02:0053           .if _ENABLE_MUSIC
+F02:0054       	swi QTM_Pos
+               S01:000087E0:  46 7E 04 EF
+F02:0055       	swi QTM_Start			    ; play
+               S01:000087E4:  41 7E 04 EF
+F02:0056           .endif
+F02:0057       	mov r0, #1
+               S01:000087E8:  01 00 A0 E3
+F02:0058       	.5:
+F02:0059       	str r0, audio_is_playing
+               S01:000087EC:  64 00 0F E5
+F02:0060       	cmp r0, #0
+               S01:000087F0:  00 00 50 E3
+F02:0061       	beq .3
+               S01:000087F4:  04 00 00 0A
+F02:0062       	; If audio is playing then we need to drive the vsync counter
+F02:0063       	ldr r0, rocket_sync_time
+               S01:000087F8:  74 00 1F E5
+F02:0064       	add r0, r0, r10
+               S01:000087FC:  0A 00 80 E0
+F02:0065       	str r0, rocket_sync_time
+               S01:00008800:  7C 00 0F E5
+F02:0066       	bl rocket_set_sync_time
+               S01:00008804:  1C 00 00 EB
+F02:0067       	b .4
+               S01:00008808:  03 00 00 EA
+F02:0068       	.3:
+F02:0069       	; Otherwise we obtain the vsync counter from the editor.
+F02:0070       	bl rocket_get_sync_time
+               S01:0000880C:  17 00 00 EB
+F02:0071       	str r0, rocket_sync_time
+               S01:00008810:  8C 00 0F E5
+F02:0072       	; Still set the Tracker pos for debug
+F02:0073       	bl rocket_sync_time_to_music_pos
+               S01:00008814:  1C 00 00 EB
+F02:0074           .if _ENABLE_MUSIC
+F02:0075       	swi QTM_Pos
+               S01:00008818:  46 7E 04 EF
+F02:0076           .endif
+F02:0077       	.4:
+F02:0078           ldr pc, [sp], #4
+               S01:0000881C:  04 F0 9D E4
+F02:0079       
+F02:0080       ; R0 = track no.
+F02:0081       ; Returns R1 = 16.16 value
+F02:0082       ; Trashes R2, R3
+F02:0083       rocket_sync_get_val:
+F02:0084           ldr r2, podule3_base
+               S01:00008820:  94 20 1F E5
+F02:0085           ldr r1, [r2, r0, lsl #3]        ; r3 = podule3_base[track_no * 8]
+               S01:00008824:  80 11 92 E7
+F02:0086           add r2, r2, #4
+               S01:00008828:  04 20 82 E2
+F02:0087           ldr r3, [r2, r0, lsl #3]        ; r1 = podule3_base[track_no * 8 + 4]
+               S01:0000882C:  80 31 92 E7
+F02:0088           orr r1, r1, r3, lsl #16         ; val = r3 << 16 | r1
+               S01:00008830:  03 18 81 E1
+F02:0089           mov pc, lr
+               S01:00008834:  0E F0 A0 E1
+F02:0090       
+F02:0091       ; R0 = track no.
+F02:0092       ; Returns R1 = integer part only
+F02:0093       ; Trashes R2
+F02:0094       rocket_sync_get_val_hi:
+F02:0095           ldr r2, podule3_base
+               S01:00008838:  AC 20 1F E5
+F02:0096           add r2, r2, #4
+               S01:0000883C:  04 20 82 E2
+F02:0097           ldr r1, [r2, r0, lsl #3]        ; r1 = podule3_base[track_no * 8 + 4]
+               S01:00008840:  80 11 92 E7
+F02:0098           mov pc, lr
+               S01:00008844:  0E F0 A0 E1
+F02:0099       
+F02:0100       ; R0 = track no.
+F02:0101       ; Returns R1 = fractional part only
+F02:0102       ; Trashes R2
+F02:0103       rocket_sync_get_val_lo:
+F02:0104           ldr r2, podule3_base
+               S01:00008848:  BC 20 1F E5
+F02:0105           ldr r1, [r2, r0, lsl #3]        ; r1 = podule3_base[track_no * 8]
+               S01:0000884C:  80 11 92 E7
+F02:0106           mov pc, lr
+               S01:00008850:  0E F0 A0 E1
+F02:0107       
+F02:0108       rocket_get_audio_is_playing:
+F02:0109           ldr r2, podule3_audio_is_playing
+               S01:00008854:  C4 20 1F E5
+F02:0110           ldr r0, [r2]
+               S01:00008858:  00 00 92 E5
+F02:0111           mov pc, lr
+               S01:0000885C:  0E F0 A0 E1
+F02:0112       
+F02:0113       ; R0 = audio off (0) on (otherwise)
+F02:0114       rocket_set_audio_playing:
+F02:0115           ldr r2, podule3_audio_is_playing
+               S01:00008860:  D0 20 1F E5
+F02:0116           mov r1, r0, lsl #16             ; podule write to upper 16 bits
+               S01:00008864:  00 18 A0 E1
+F02:0117           str r1, [r2]
+               S01:00008868:  00 10 82 E5
+F02:0118           mov pc, lr
+               S01:0000886C:  0E F0 A0 E1
+F02:0119       
+F02:0120       rocket_get_sync_time:
+F02:0121           ldr r2, podule3_vsync_count
+               S01:00008870:  DC 20 1F E5
+F02:0122           ldr r0, [r2]
+               S01:00008874:  00 00 92 E5
+F02:0123           mov pc, lr
+               S01:00008878:  0E F0 A0 E1
+F02:0124       
+F02:0125       rocket_set_sync_time:
+F02:0126           ldr r2, podule3_vsync_count
+               S01:0000887C:  E8 20 1F E5
+F02:0127           mov r1, r0, lsl #16             ; podule write to upper 16 bits
+               S01:00008880:  00 18 A0 E1
+F02:0128           str r1, [r2]
+               S01:00008884:  00 10 82 E5
+F02:0129           mov pc, lr
+               S01:00008888:  0E F0 A0 E1
+F02:0130       
+F02:0131       ; R0 = sync time (vsync count)
+F02:0132       ; Returns R0 = pattern, R1 = line
+F02:0133       ; Trashes R2, R3
+F02:0134       rocket_sync_time_to_music_pos:
+F02:0135       	mov r1, r0, lsr #2		; row = vsyncs / vpr; fixed speed = 4
+               S01:0000888C:  20 11 A0 E1
+F02:0136       
+F02:0137       ; If all patterns are length 64 can just do this:
+F02:0138       ;	mov r0, r1, lsr #6		; pattern = row DIV 64
+F02:0139       ;	and r1, r1, #63			; line = row MOD 64
+F02:0140       
+F02:0141           adr r2, rocket_music_pattern_lengths
+               S01:00008890:  3C 20 8F E2
+F02:0142           mov r0, #0
+               S01:00008894:  00 00 A0 E3
+F02:0143           .1:
+F02:0144           ldr r3, [r2, r0, lsl #3]
+               S01:00008898:  80 31 92 E7
+F02:0145           cmp r3, r1
+               S01:0000889C:  01 00 53 E1
+F02:0146           bge .2
+               S01:000088A0:  01 00 00 AA
+F02:0147           add r0, r0, #1
+               S01:000088A4:  01 00 80 E2
+F02:0148           b .1
+               S01:000088A8:  FA FF FF EA
+F02:0149           .2:
+F02:0150       
+F02:0151           ; R0 = pattern
+F02:0152           subgt r0, r0, #1
+               S01:000088AC:  01 00 40 C2
+F02:0153       
+F02:0154           ; clamp to end of song.
+F02:0155           cmp r0, #Pattern_Max
+               S01:000088B0:  17 00 50 E3
+F02:0156           movge r0, #Pattern_Max-1
+               S01:000088B4:  16 00 A0 A3
+F02:0157           movge r1, #63
+               S01:000088B8:  3F 10 A0 A3
+F02:0158           movge pc, lr
+               S01:000088BC:  0E F0 A0 A1
+F02:0159       
+F02:0160           sub r1, r1, r3          ; remove pattern start
+               S01:000088C0:  03 10 41 E0
+F02:0161           add r2, r2, r0, lsl #3
+               S01:000088C4:  80 21 82 E0
+F02:0162           ldr r3, [r2, #4]
+               S01:000088C8:  04 30 92 E5
+F02:0163           and r1, r1, r3          ; line in pattern
+               S01:000088CC:  03 10 01 E0
+F02:0164           mov pc, lr
+               S01:000088D0:  0E F0 A0 E1
+F02:0165       
+F02:0166       .macro pat_len start, len
+F02:0170       
+F02:0171       
+F02:0172       ; TODO: automate from MOD file.
+F02:0173       ; BBPD MOD has short (32 line) patterns at 8, 15, 20, 21.
+F02:0174       rocket_music_pattern_lengths:
+F02:0175           .set ps, 0
+F02:0176           pat_len ps, 64   ; 0
+F03:0001           .long ps
+               S01:000088D4:  00 00 00 00
+F03:0002           .long 64-1
+               S01:000088D8:  3F 00 00 00
+F03:0003           .set ps, ps + 64
+F02:0177           pat_len ps, 64
+F04:0001           .long ps
+               S01:000088DC:  40 00 00 00
+F04:0002           .long 64-1
+               S01:000088E0:  3F 00 00 00
+F04:0003           .set ps, ps + 64
+F02:0178           pat_len ps, 64
+F05:0001           .long ps
+               S01:000088E4:  80 00 00 00
+F05:0002           .long 64-1
+               S01:000088E8:  3F 00 00 00
+F05:0003           .set ps, ps + 64
+F02:0179           pat_len ps, 64
+F06:0001           .long ps
+               S01:000088EC:  C0 00 00 00
+F06:0002           .long 64-1
+               S01:000088F0:  3F 00 00 00
+F06:0003           .set ps, ps + 64
+F02:0180           pat_len ps, 64
+F07:0001           .long ps
+               S01:000088F4:  00 01 00 00
+F07:0002           .long 64-1
+               S01:000088F8:  3F 00 00 00
+F07:0003           .set ps, ps + 64
+F02:0181           pat_len ps, 64
+F08:0001           .long ps
+               S01:000088FC:  40 01 00 00
+F08:0002           .long 64-1
+               S01:00008900:  3F 00 00 00
+F08:0003           .set ps, ps + 64
+F02:0182           pat_len ps, 64
+F09:0001           .long ps
+               S01:00008904:  80 01 00 00
+F09:0002           .long 64-1
+               S01:00008908:  3F 00 00 00
+F09:0003           .set ps, ps + 64
+F02:0183           pat_len ps, 64
+F10:0001           .long ps
+               S01:0000890C:  C0 01 00 00
+F10:0002           .long 64-1
+               S01:00008910:  3F 00 00 00
+F10:0003           .set ps, ps + 64
+F02:0184           pat_len ps, 32   ; 8
+F11:0001           .long ps
+               S01:00008914:  00 02 00 00
+F11:0002           .long 32-1
+               S01:00008918:  1F 00 00 00
+F11:0003           .set ps, ps + 32
+F02:0185           pat_len ps, 64
+F12:0001           .long ps
+               S01:0000891C:  20 02 00 00
+F12:0002           .long 64-1
+               S01:00008920:  3F 00 00 00
+F12:0003           .set ps, ps + 64
+F02:0186           pat_len ps, 64
+F13:0001           .long ps
+               S01:00008924:  60 02 00 00
+F13:0002           .long 64-1
+               S01:00008928:  3F 00 00 00
+F13:0003           .set ps, ps + 64
+F02:0187           pat_len ps, 64
+F14:0001           .long ps
+               S01:0000892C:  A0 02 00 00
+F14:0002           .long 64-1
+               S01:00008930:  3F 00 00 00
+F14:0003           .set ps, ps + 64
+F02:0188           pat_len ps, 64
+F15:0001           .long ps
+               S01:00008934:  E0 02 00 00
+F15:0002           .long 64-1
+               S01:00008938:  3F 00 00 00
+F15:0003           .set ps, ps + 64
+F02:0189           pat_len ps, 64
+F16:0001           .long ps
+               S01:0000893C:  20 03 00 00
+F16:0002           .long 64-1
+               S01:00008940:  3F 00 00 00
+F16:0003           .set ps, ps + 64
+F02:0190           pat_len ps, 64
+F17:0001           .long ps
+               S01:00008944:  60 03 00 00
+F17:0002           .long 64-1
+               S01:00008948:  3F 00 00 00
+F17:0003           .set ps, ps + 64
+F02:0191           pat_len ps, 32   ; 15
+F18:0001           .long ps
+               S01:0000894C:  A0 03 00 00
+F18:0002           .long 32-1
+               S01:00008950:  1F 00 00 00
+F18:0003           .set ps, ps + 32
+F02:0192           pat_len ps, 64
+F19:0001           .long ps
+               S01:00008954:  C0 03 00 00
+F19:0002           .long 64-1
+               S01:00008958:  3F 00 00 00
+F19:0003           .set ps, ps + 64
+F02:0193           pat_len ps, 64
+F20:0001           .long ps
+               S01:0000895C:  00 04 00 00
+F20:0002           .long 64-1
+               S01:00008960:  3F 00 00 00
+F20:0003           .set ps, ps + 64
+F02:0194           pat_len ps, 64
+F21:0001           .long ps
+               S01:00008964:  40 04 00 00
+F21:0002           .long 64-1
+               S01:00008968:  3F 00 00 00
+F21:0003           .set ps, ps + 64
+F02:0195           pat_len ps, 64
+F22:0001           .long ps
+               S01:0000896C:  80 04 00 00
+F22:0002           .long 64-1
+               S01:00008970:  3F 00 00 00
+F22:0003           .set ps, ps + 64
+F02:0196           pat_len ps, 32   ; 20
+F23:0001           .long ps
+               S01:00008974:  C0 04 00 00
+F23:0002           .long 32-1
+               S01:00008978:  1F 00 00 00
+F23:0003           .set ps, ps + 32
+F02:0197           pat_len ps, 32   ; 21
+F24:0001           .long ps
+               S01:0000897C:  E0 04 00 00
+F24:0002           .long 32-1
+               S01:00008980:  1F 00 00 00
+F24:0003           .set ps, ps + 32
+F02:0198           pat_len ps, 64   ; 22
+F25:0001           .long ps
+               S01:00008984:  00 05 00 00
+F25:0002           .long 64-1
+               S01:00008988:  3F 00 00 00
+F25:0003           .set ps, ps + 64
+F02:0199       
+F02:0200       .else
+F02:0201       
+F02:0202       ; Set up whatever track context is required per track.
+F02:0203       rocket_init:
+F02:0204           mov r0, #0
+F02:0205           adr r1, tracks_table
+F02:0206           adr r4, tracks_context
+F02:0207           .1:
+F02:0208           ldr r2, [r1, r0, lsl #2]        ; track_data_offset = tracks_table[i]
+F02:0209           add r2, r2, r1                  ; track_ptr = track_data_offset + tracks_table
+F02:0210           ldr r3, [r2], #4                ; num_keys = *track_ptr++
+F02:0211           str r2, [r4], #4                ; track_context[i].ptr = track_ptr
+F02:0212           sub r3, r3, #1                  ; num_keys--
+F02:0213           add r2, r2, r3, lsl #3          ; track_end = track_ptr + 8 * (num_keys-1)
+F02:0214           str r2, [r4], #4                ; track_context[i].end = track_end
+F02:0215           add r0, r0, #1
+F02:0216           cmp r0, #Tracks_Max
+F02:0217           blt .1
+F02:0218           mov pc, lr
+F02:0219       
+F02:0220       ; Start the sync tracker.
+F02:0221       rocket_start:
+F02:0222           .if _ENABLE_MUSIC
+F02:0223       	swi QTM_Start				    ; start audio playback
+F02:0224           .endif
+F02:0225           mov pc, lr
+F02:0226       
+F02:0227       ; R0 = vsync delta since last update.
+F02:0228       rocket_update:
+F02:0229       	; Sequence can only move forwards when not connected to editor.
+F02:0230       	ldr r1, rocket_sync_time
+F02:0231       	add r1, r1, r0
+F02:0232       	str r1, rocket_sync_time
+F02:0233           mov pc, lr
+F02:0234       
+F02:0235       ; R0 = track no.                    ; pass in sync time?
+F02:0236       ; Returns R1 = 16.16 value
+F02:0237       ; Trashes R2..R9
+F02:0238       rocket_sync_get_val:
+F02:0239           ; get track context
+F02:0240           adr r10, tracks_context
+F02:0241           add r10, r10, r0, lsl #3        ; track_context[i]
+F02:0242           ldmia r10, {r2, r3}             ; r2 = track_ptr; r3 = track_end
+F02:0243       
+F02:0244           .1:
+F02:0245           ; get current key & next key
+F02:0246           ldmia r2, {r4 - r7}             ; r4 = current key time
+F02:0247                                           ; r5 = current key value
+F02:0248                                           ; r6 = next key time
+F02:0249                                           ; r7 = next key value
+F02:0250           ; if last key then return last value
+F02:0251           cmp r2, r3
+F02:0252           moveq r1, r5
+F02:0253           moveq pc, lr
+F02:0254       
+F02:0255           ; if sync time < current key time then return first value
+F02:0256           ldr r8, rocket_sync_time        ; or pass this in?
+F02:0257           mov r9, r4, lsr #24             ; r9 = current key type
+F02:0258           bic r4, r4, #0xff000000         ; mask out current key type
+F02:0259           cmp r8, r4
+F02:0260           movlt r1, r5
+F02:0261           movlt pc, lr
+F02:0262       
+F02:0263           ; if time > next key time then move to next key
+F02:0264           bic r6, r6, #0xff000000         ; mask out next key type
+F02:0265           cmp r8, r6
+F02:0266           addge r2, r2, #8
+F02:0267           strge r2, [r10]
+F02:0268           bge .1
+F02:0269       
+F02:0270           ; switch key type
+F02:0271           cmp r9, #0
+F02:0272           ; step: return value
+F02:0273           moveq r1, r5
+F02:0274           moveq pc, lr
+F02:0275       
+F02:0276           ; linear: interpolate value
+F02:0277       	; double t = (row - k[0].row) / (k[1].row - k[0].row);
+F02:0278       	; return k[0].value + (k[1].value - k[0].value) * t;
+F02:0279           sub r6, r6, r4                  ; (k[1].row - k[0].row) ; const for key
+F02:0280           sub r8, r8, r4                  ; (row - k[0].row)
+F02:0281           adr r3, divisor_table
+F02:0282           ldr r1, [r3, r6, lsl #2]        ; r6 = 1 / (k[1].row - k[0].row) [fp 0.16]  ; const for key
+F02:0283           mul r8, r1, r8                  ; r8 = (row - k[0].row) / (k[1].row - k[0].row) [fp 0.16]
+F02:0284           mov r8, r8, asr #6              ; [fp 0.10]
+F02:0285       
+F02:0286           sub r7, r7, r5                  ; (k[1].value - k[0].value) [fp 16.16]  ; const for key
+F02:0287           mov r7, r7, asr #6              ; [fp 12.10]
+F02:0288           mul r1, r7, r8                  ; (k[1].value - k[0].value) * t [fp 12.20]
+F02:0289           add r1, r5, r1, asr #4          ; k[0].value + (k[1].value - k[0].value) * t [fp 16.16]
+F02:0290           mov pc, lr
+F02:0291       
+F02:0292       rocket_set_audio_playing:
+F02:0293           cmp r0, #0
+F02:0294           swieq QTM_Pause			    ; pause
+F02:0295           swine QTM_Start             ; play
+F02:0296           mov pc, lr
+F02:0297       
+F02:0298       rocket_sync_get_val_lo:
+F02:0299       	str lr, [sp, #-4]!			; push lr on stack
+F02:0300           bl rocket_sync_get_val
+F02:0301           bic r1, r1, #0xff000000
+F02:0302           bic r1, r1, #0x00ff0000
+F02:0303           ldr pc, [sp], #4
+F02:0304       
+F02:0305       rocket_sync_get_val_hi:
+F02:0306       	str lr, [sp, #-4]!			; push lr on stack
+F02:0307           bl rocket_sync_get_val
+F02:0308           mov r1, r1, lsr #16
+F02:0309           ldr pc, [sp], #4
+F02:0310       
+F02:0311       tracks_context:
+F02:0312           .skip Tracks_Max * 8        ; track_ptr - ptr to current key
+F02:0313                                       ; track_end - ptr to last key
+F02:0314       
+F02:0315       ; TODO: automate this from track_list file.
+F02:0316       tracks_table:
+F02:0317           .long track_stniccc_stniccc_frame - tracks_table
+F02:0318           .long track_stniccc_show_image - tracks_table
+F02:0319           .long track_stniccc_grey_scale - tracks_table
+F02:0320           .long track_stniccc_fade_to_white - tracks_table
+F02:0321           .long track_stniccc_fade_to_black - tracks_table
+F02:0322       
+F02:0323       track_stniccc_stniccc_frame:
+F02:0324           .incbin "data/rocket/stniccc_stniccc_frame.track"
+F02:0325       
+F02:0326       track_stniccc_show_image:
+F02:0327           .incbin "data/rocket/stniccc_show_image.track"
+F02:0328       
+F02:0329       track_stniccc_grey_scale:
+F02:0330           .incbin "data/rocket/stniccc_grey_scale.track"
+F02:0331       
+F02:0332       track_stniccc_fade_to_white:
+F02:0333           .incbin "data/rocket/stniccc_fade_to_white.track"
+F02:0334       
+F02:0335       track_stniccc_fade_to_black:
+F02:0336           .incbin "data/rocket/stniccc_fade_to_black.track"
+F02:0337       
+F02:0338       divisor_table:
+F02:0339           .long 0
+F02:0340           .set div, 1
+F02:0341           .rept 1023
+F02:0342           .set one_over, 65536 / div
+F02:0343           .long one_over
+F02:0344           .set div, div + 1
+F02:0345           .endr
+F02:0346       
+F02:0347       .endif
+F02:0348       
+F00:0402       
+F00:0403       ; ============================================================================
+F00:0404       ; Data Segment
+F00:0405       ; ============================================================================
+F00:0406       
+F00:0407       .if _ENABLE_MUSIC
+F00:0408       module_filename:
+F00:0409       	.byte "<Demo$Dir>.Music",0
+               S01:0000898C:  3C 44 65 6D 6F 24 44 69 72 3E 2E 4D 75 73 69 63
+               S01:0000899C:  00
+F00:0410       	.align 4
+F00:0411       .endif
+F00:0412       
+F00:0413       ; ============================================================================
+F00:0414       ; BSS Segment
+F00:0415       ; ============================================================================
+F00:0416       
+F00:0417       palette_osword_block:
+F00:0418           .skip 8
+F00:0419           ; logical colour
+F00:0420           ; physical colour (16)
+F00:0421           ; red
+F00:0422           ; green
+F00:0423           ; blue
+F00:0424           ; (pad)
+F00:0425       
+
+
+Sections:
+S01  seg8000
+
+
+Sources:
+F00  proto-arc.asm
+F01  lib\swis.h.asm
+F02  lib\rocket.asm
+F03  pat_len
+F04  pat_len
+F05  pat_len
+F06  pat_len
+F07  pat_len
+F08  pat_len
+F09  pat_len
+F10  pat_len
+F11  pat_len
+F12  pat_len
+F13  pat_len
+F14  pat_len
+F15  pat_len
+F16  pat_len
+F17  pat_len
+F18  pat_len
+F19  pat_len
+F20  pat_len
+F21  pat_len
+F22  pat_len
+F23  pat_len
+F24  pat_len
+F25  pat_len
+
+
+Symbols:
+ps EXPR(1344=0x540) 
+ rocket_sync_time_to_music_pos .2 EXPR(34988=0x88ac) ABS 
+ rocket_sync_time_to_music_pos .1 EXPR(34968=0x8898) ABS 
+rocket_music_pattern_lengths EXPR(35028=0x88d4) ABS 
+rocket_sync_get_val_lo EXPR(34888=0x8848) UNUSED ABS 
+rocket_sync_get_val EXPR(34848=0x8820) UNUSED ABS 
+rocket_get_sync_time EXPR(34928=0x8870) ABS 
+ rocket_update .4 EXPR(34844=0x881c) ABS 
+rocket_set_sync_time EXPR(34940=0x887c) ABS 
+ rocket_update .3 EXPR(34828=0x880c) ABS 
+rocket_sync_time_to_music_pos EXPR(34956=0x888c) ABS 
+ rocket_update .5 EXPR(34796=0x87ec) ABS 
+rocket_get_audio_is_playing EXPR(34900=0x8854) ABS 
+rocket_set_audio_playing EXPR(34912=0x8860) ABS 
+podule3_vsync_count EXPR(34716=0x879c) ABS 
+podule3_audio_is_playing EXPR(34712=0x8798) ABS 
+podule3_base EXPR(34708=0x8794) ABS 
+audio_is_playing EXPR(34704=0x8790) ABS 
+rocket_sync_time EXPR(34700=0x878c) ABS 
+Tracks_Max EXPR(5=0x5) UNUSED 
+Pattern_Max EXPR(23=0x17) 
+palette_block_addr EXPR(34560=0x8700) ABS 
+ event_handler .3 EXPR(34476=0x86ac) ABS 
+palette_osword_block EXPR(35232=0x89a0) ABS 
+ event_handler .4 EXPR(34536=0x86e8) ABS 
+palette_pending EXPR(34576=0x8710) ABS 
+buffer_pending EXPR(34572=0x870c) ABS 
+screen_addr EXPR(34280=0x85e8) ABS 
+screen_addr_input EXPR(34272=0x85e0) ABS 
+get_screen_addr EXPR(34244=0x85c4) ABS 
+debug_string EXPR(34236=0x85bc) ABS 
+exit EXPR(34284=0x85ec) ABS 
+show_screen_at_vsync EXPR(34648=0x8758) ABS 
+rocket_sync_get_val_hi EXPR(34872=0x8838) ABS 
+get_next_screen_for_writing EXPR(34668=0x876c) ABS 
+debug_write_vsync_count EXPR(34164=0x8574) ABS 
+rocket_update EXPR(34740=0x87b4) ABS 
+vsync_count EXPR(34564=0x8704) ABS 
+ main_loop .1 EXPR(34044=0x84fc) ABS 
+last_vsync EXPR(34568=0x8708) ABS 
+main_loop EXPR(34040=0x84f8) ABS 
+rocket_start EXPR(34724=0x87a4) ABS 
+rocket_init EXPR(34720=0x87a0) ABS 
+event_handler EXPR(34372=0x8644) ABS 
+error_handler EXPR(34580=0x8714) ABS 
+scr_bank EXPR(34556=0x86fc) ABS 
+ main .1 EXPR(33944=0x8498) ABS 
+module_filename EXPR(35212=0x898c) ABS 
+error_noscreenmem EXPR(34120=0x8548) ABS 
+main EXPR(33804=0x840c) ABS 
+stack_base EXPR(33804=0x840c) ABS 
+Start EXPR(32768=0x8000) UNUSED ABS 
+QTM_Pos EXPR(294470=0x47e46) 
+QTM_SetSampleSpeed EXPR(294473=0x47e49) 
+QTM_Pause EXPR(294467=0x47e43) 
+QTM_Stop EXPR(294466=0x47e42) 
+QTM_Start EXPR(294465=0x47e41) 
+QTM_Load EXPR(294464=0x47e40) 
+Event_VSync EXPR(4=0x4) 
+EventV EXPR(16=0x10) 
+ErrorV EXPR(1=0x1) 
+OS_AddToVector EXPR(71=0x47) 
+OS_Release EXPR(32=0x20) 
+OS_Claim EXPR(31=0x1f) 
+VD_ScreenStart EXPR(148=0x94) 
+DynArea_Screen EXPR(2=0x2) 
+IKey_Escape EXPR(143=0x8f) 
+IKey_Space EXPR(157=0x9d) UNUSED 
+IKey_RightClick EXPR(244=0xf4) UNUSED 
+IKey_LeftClick EXPR(246=0xf6) UNUSED 
+OSWord_WritePalette EXPR(12=0xc) UNUSED 
+OSByte_ReadKey EXPR(129=0x81) 
+OSByte_WriteDisplayBank EXPR(113=0x71) 
+OSByte_WriteVDUBank EXPR(112=0x70) 
+OSByte_Vsync EXPR(19=0x13) UNUSED 
+OSByte_EventDisable EXPR(13=0xd) 
+OSByte_EventEnable EXPR(14=0xe) 
+OS_ConvertCardinal4 EXPR(216=0xd8) UNUSED 
+OS_ConvertCardinal1 EXPR(213=0xd5) UNUSED 
+OS_ConvertHex8 EXPR(212=0xd4) UNUSED 
+OS_ConvertHex4 EXPR(210=0xd2) UNUSED 
+OS_ConvertHex2 EXPR(209=0xd1) 
+OS_ReadDynamicArea EXPR(92=0x5c) 
+OS_ReadMonotonicTime EXPR(66=0x42) UNUSED 
+OS_ReadVduVariables EXPR(49=0x31) 
+OS_GenerateError EXPR(43=0x2b) 
+OS_ChangeDynamicArea EXPR(42=0x2a) 
+OS_BreakPt EXPR(23=0x17) UNUSED 
+OS_Exit EXPR(17=0x11) 
+OS_File EXPR(8=0x8) UNUSED 
+XOS_Word EXPR(131079=0x20007) 
+OS_Word EXPR(7=0x7) 
+XOS_Byte EXPR(131078=0x20006) 
+OS_Byte EXPR(6=0x6) 
+OS_NewLine EXPR(3=0x3) UNUSED 
+OS_WriteO EXPR(2=0x2) 
+OS_WriteC EXPR(0=0x0) 
+Window_Bytes EXPR(32000=0x7d00) UNUSED 
+Window_Stride EXPR(160=0xa0) 
+Screen_Bytes EXPR(40960=0xa000) 
+Screen_Stride EXPR(160=0xa0) 
+Window_Height EXPR(200=0xc8) 
+Window_Width EXPR(256=0x100) UNUSED 
+Screen_Height EXPR(256=0x100) 
+Screen_Width EXPR(320=0x140) 
+Screen_Mode EXPR(9=0x9) 
+Screen_Banks EXPR(3=0x3) 
+_SYNC_EDITOR EXPR(1=0x1) 
+_FIX_FRAME_RATE EXPR(0=0x0) 
+_ENABLE_MUSIC EXPR(1=0x1) 
+_DEBUG EXPR(1=0x1) 
+__VASM EXPR(0=0x0) INTERNAL 
+__MSDOSFS EXPR(0=0x0) INTERNAL 
+
+There have been no errors.
