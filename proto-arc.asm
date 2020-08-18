@@ -3,7 +3,7 @@
 ; ============================================================================
 
 .equ _DEBUG, 1
-.equ _ENABLE_MUSIC, 1
+.equ _ENABLE_MUSIC, 0
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 1
 
@@ -11,12 +11,9 @@
 .equ Screen_Mode, 9
 .equ Screen_Width, 320
 .equ Screen_Height, 256
-.equ Window_Width, 256
-.equ Window_Height, 200
-.equ Screen_Stride, Screen_Width/2		; 4bpp
+.equ Screen_PixelsPerByte, 2
+.equ Screen_Stride, Screen_Width/Screen_PixelsPerByte
 .equ Screen_Bytes, Screen_Stride*Screen_Height
-.equ Window_Stride, Screen_Width/2		; 4bpp
-.equ Window_Bytes, Window_Stride*Window_Height
 
 .include "lib/swis.h.asm"
 
@@ -115,6 +112,8 @@ main:
 	swi OS_AddToVector
 
 	; LATE INITALISATION HERE!
+	adr r2, blue_palette
+	bl palette_set_block
 
 	; Sync tracker.
 	bl rocket_init
@@ -139,6 +138,7 @@ main_loop:
 	sub r0, r2, r1
 	.endif
 	str r2, last_vsync
+	str r0, vsync_delta
 
 	; R0 = vsync delta since last frame.
 	bl rocket_update
@@ -150,8 +150,7 @@ main_loop:
 
 	; DO STUFF HERE!
 	bl get_next_screen_for_writing
-	mov r0, #0
-	bl rocket_sync_get_val_hi
+	bl tunnel_fx
 	bl show_screen_at_vsync
 
 	; exit if Escape is pressed
@@ -198,7 +197,7 @@ debug_write_vsync_count:
 	adr r0, debug_string
 	swi OS_WriteO
 .else
-	ldr r0, rocket_sync_time
+	ldr r0, vsync_delta	; rocket_sync_time
 	adr r1, debug_string
 	mov r2, #8
 	swi OS_ConvertHex4
@@ -345,6 +344,9 @@ vsync_count:
 last_vsync:
 	.long 0				; vsync count at start of previous frame.
 
+vsync_delta:
+	.long 0
+
 buffer_pending:
 	.long 0				; screen bank number to display at vsync.
 
@@ -399,6 +401,102 @@ get_next_screen_for_writing:
 ; ============================================================================
 
 .include "lib/rocket.asm"
+.include "lib/mode9-palette.asm"
+
+.macro PIXEL_LOOKUP_TO_R3
+	add r0, r0, r2				; v += offset
+	and r0, r0, #0xff			; tex_size = 256
+
+	add r1, r1, r2				; v += offset
+	and r1, r1, #0xff			; tex_size = 256
+
+	add r1, r11, r1, lsl #7		; xor_texture[v * 128]
+	add r1, r1, r0,	asr #1		; xor_texture[v * 128 + u/2]
+	ldrb r3, [r1]
+	tst r0, #1					; u%2
+	andeq r3, r3, #0x0f			; left-hand pixel
+	movne r3, r3, lsr #4		; right-hand pixel
+.endm
+
+tunnel_fx:
+	str lr, [sp, #-4]!
+
+	mov r0, #0
+	bl rocket_sync_get_val_hi	; offset
+	mov r2, r1
+
+	ldr r12, screen_addr
+	add r5, r12, #Screen_Bytes
+
+	adr r11, xor_texture		; 256x256 pixels = 128x256 bytes
+	adr r10, tunnel_map			; 320x256 half-words
+
+.1:
+	ldmia r10!, {r6-r9}			; 8 pixels worth of (u,v)
+
+	; word = v1u1v0u0
+
+	; pixel 0
+	and r0, r6, #0xff			; u0
+	mov r1, r6, lsr #8
+	and r1, r1, #0xff			; v0
+	PIXEL_LOOKUP_TO_R3
+	mov r4, r3					; pixel << 0
+
+	; pixel 1
+	mov r0, r6, lsr #16
+	and r0, r0, #0xff			; u1
+	mov r1, r6, lsr #24			; v1
+	PIXEL_LOOKUP_TO_R3
+	orr r4, r4, r3, lsl #4			; pixel << 4
+
+	; pixel 2
+	and r0, r7, #0xff			; u2
+	mov r1, r7, lsr #8
+	and r1, r1, #0xff			; v2
+	PIXEL_LOOKUP_TO_R3
+	orr r4, r4, r3, lsl #8			; pixel << 8
+
+	; pixel 3
+	mov r0, r7, lsr #16
+	and r0, r0, #0xff			; u1
+	mov r1, r7, lsr #24			; v1
+	PIXEL_LOOKUP_TO_R3
+	orr r4, r4, r3, lsl #12			; pixel << 12
+
+	; pixel 4
+	and r0, r8, #0xff			; u0
+	mov r1, r8, lsr #8
+	and r1, r1, #0xff			; v0
+	PIXEL_LOOKUP_TO_R3
+	orr r4, r4, r3, lsl #16			; pixel << 16
+
+	; pixel 5
+	mov r0, r8, lsr #16
+	and r0, r0, #0xff			; u1
+	mov r1, r8, lsr #24			; v1
+	PIXEL_LOOKUP_TO_R3
+	orr r4, r4, r3, lsl #20			; pixel << 20
+
+	; pixel 6
+	and r0, r9, #0xff			; u2
+	mov r1, r9, lsr #8
+	and r1, r1, #0xff			; v2
+	PIXEL_LOOKUP_TO_R3
+	orr r4, r4, r3, lsl #24			; pixel << 24
+
+	; pixel 7
+	mov r0, r9, lsr #16
+	and r0, r0, #0xff			; u1
+	mov r1, r9, lsr #24			; v1
+	PIXEL_LOOKUP_TO_R3
+	orr r4, r4, r3, lsl #28			; pixel << 28
+
+	str r4, [r12], #4			; finally write 8 pixels to the screen!
+	cmp r12, r5
+	blt .1
+
+	ldr pc, [sp], #4
 
 ; ============================================================================
 ; Data Segment
@@ -409,6 +507,33 @@ module_filename:
 	.byte "<Demo$Dir>.Music",0
 	.align 4
 .endif
+
+blue_palette:
+	.long 0x00000000
+	.long 0x00110000
+	.long 0x00220000
+	.long 0x00330000
+	.long 0x00440000
+	.long 0x00550000
+	.long 0x00660000
+	.long 0x00770000
+	.long 0x00880000
+	.long 0x00990000
+	.long 0x00AA0000
+	.long 0x00BB0000
+	.long 0x00CC0000
+	.long 0x00DD0000
+	.long 0x00EE0000
+	.long 0x00FF0000
+
+; (u,v) coordinates interleaved, 1 byte each
+; 1 word = 2 pixels worth
+tunnel_map:
+.incbin "data/tun.bin"
+
+; MODE 9 texture, 4 bpp
+xor_texture:
+.incbin "data/xor.bin"
 
 ; ============================================================================
 ; BSS Segment
