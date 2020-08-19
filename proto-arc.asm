@@ -405,14 +405,6 @@ get_next_screen_for_writing:
 .include "lib/rocket.asm"
 .include "lib/mode9-palette.asm"
 
-; if rUV = 00vv00uu
-; if rOF = 00aa00bb
-; add together then mask?
-;	add r2, r0, r1
-;	and r3, r2, #0xff
-;	add r3, r11, r3
-;	ldrb reg, [r3, r2, lsr #8]	; would work for 256 texture
-
 .macro PIXEL_LOOKUP_TO reg
 	; r0 = XXvv00uu
 	add r3, r0, r9				; XXvv00uu + YYbb00aa
@@ -444,7 +436,7 @@ tunnel_fx:
 .1:
     .rept Screen_Stride / 8
 	ldmia r10!, {r5-r8}			; 8 pixels worth of (u,v)
-	; 3+2*1.25 = 6.5c
+	; 3+4*1.25 = 8c
 
 	; r5 = v1v0u1u0
 	; pixel 0
@@ -510,13 +502,13 @@ tunnel_fx:
 
 	stmia r12!, {r4-r5}			; finally write 8 pixels to the screen!
 	stmia r2!, {r4-r5}
-	; 8c
+	; 6.5c*2 = 13c
 
-	; 6.5+10+11+11+11+8 = 58c
+	; 8+43+43+13 = 
 
 	.endr
 
-	; 58c * 40 = 2320c
+	; 103c * 20 = 2060c + DRAM per row
 
 	add r2, r2, #Screen_Stride
 	add r12, r12, #Screen_Stride
@@ -525,9 +517,9 @@ tunnel_fx:
 	adds r9, r9, #0x01<<24
 	cmp r9, #Screen_Height<<23
 	blt .1
-	; 7c
+	; 8c
 
-	; 2367c per row * 128 = 302,976c per screen
+	; 2068c per row * 128 = 248,160c + DRAM per screen
 
 	ldr pc, [sp], #4
 
@@ -565,7 +557,7 @@ blue_palette:
 tunnel_map:
 .incbin "data/tun.bin"
 
-; MODE 9 texture, 4 bpp
+; MODE 9 texture, 4 bpp x 2
 xor_texture:
 .incbin "data/xor.bin"
 
