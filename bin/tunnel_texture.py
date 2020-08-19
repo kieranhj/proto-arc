@@ -23,20 +23,33 @@ def main(options):
 
     pixel_data=[]
     for y in range(0, sh):
-        for x in range(0,sw):
+        for x in range(0,sw,2):
             div = math.sqrt((x - sw / 2.0) * (x - sw / 2.0) + (y - sh / 2.0) * (y - sh / 2.0))
             if div != 0:
-                distance = int(ratio * th / div) % th
+                distance1 = int(ratio * th / div) % th
             else:
-                distance = 0
+                distance1 = 0
 
-            angle = int(0.5 * tw * math.atan2(y - sh / 2.0, x - sw / 2.0) / math.pi)
+            angle1 = int(0.5 * tw * math.atan2(y - sh / 2.0, x - sw / 2.0) / math.pi)
 
-            if angle < 0:
-                angle = 256+angle
+            if angle1 < 0:
+                angle1 = 256+angle1
 
-            pixel_data.append(angle)       # u
-            pixel_data.append(distance)    # v
+            div = math.sqrt(((x+1) - sw / 2.0) * ((x+1) - sw / 2.0) + (y - sh / 2.0) * (y - sh / 2.0))
+            if div != 0:
+                distance2 = int(ratio * th / div) % th
+            else:
+                distance2 = 0
+
+            angle2 = int(0.5 * tw * math.atan2(y - sh / 2.0, (x+1) - sw / 2.0) / math.pi)
+
+            if angle2 < 0:
+                angle2 = 256+angle2
+
+            pixel_data.append(angle1)       # u
+            pixel_data.append(angle2)       # u
+            pixel_data.append(distance1)    # v
+            pixel_data.append(distance2)    # v
 
     #assert(len(pixel_data)==sw*sh*2)
     save_file(pixel_data,options.output_path)

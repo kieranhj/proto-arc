@@ -414,16 +414,13 @@ get_next_screen_for_writing:
 ;	ldrb reg, [r3, r2, lsr #8]	; would work for 256 texture
 
 .macro PIXEL_LOOKUP_TO reg
-	add r0, r0, r8				; v += offset
-	and r0, r0, #0xff			; tex_size = 256
-
-	add r1, r1, r9				; v += offset
-	and r1, r1, #0xff			; tex_size = 256
-
-	add r0, r11, r0				; xor_texture + u
-	; 5c
-	ldrb \reg, [r0, r1, lsl #8]	; xor_texture + u + v * 256
-	; 4c
+	; r0 = XXvv00uu
+	add r3, r0, r9				; XXvv00uu + YYbb00aa
+	and r0, r3, #0x000000ff
+	and r1, r3, #0x00ff0000
+	add r0, r0, r11
+	ldrb \reg, [r0, r1, lsr #8]
+	; 8c
 .endm
 
 tunnel_fx:
@@ -431,11 +428,11 @@ tunnel_fx:
 
 	mov r0, #0
 	bl rocket_sync_get_val_hi	; offset
-	mov r8, r1
+	mov r9, r1
 
 	mov r0, #1
 	bl rocket_sync_get_val_hi	; offset
-	mov r9, r1
+	orr r9, r9, r1, lsl #16		; 00bb00aa
 
 	ldr r12, screen_addr
 	add r2, r12, #Screen_Stride
@@ -445,51 +442,88 @@ tunnel_fx:
 	adr r10, tunnel_map			; 160x128 half-words
 
 .1:
-    .rept Screen_Stride / 4
-	ldmia r10!, {r6-r7}			; 4 pixels worth of (u,v)
+    .rept Screen_Stride / 8
+	ldmia r10!, {r5-r8}			; 8 pixels worth of (u,v)
 	; 3+2*1.25 = 6.5c
 
-	; tunnel word = v1u1v0u0
+	; r5 = v1v0u1u0
 	; pixel 0
-	and r0, r6, #0xff			; u0
-	mov r1, r6, lsr #8
-	and r1, r1, #0xff			; v0
-	PIXEL_LOOKUP_TO R4
-	; 3+9 = 12c
+	bic r0, r5, #0x0000ff00
+	; r0 = XXvv00uu
+	PIXEL_LOOKUP_TO r4
+	; 10c
 
 	; pixel 1
-	mov r0, r6, lsr #16
-	and r0, r0, #0xff			; u1
-	mov r1, r6, lsr #24			; v1
-	PIXEL_LOOKUP_TO R3
+	mov r0, r5, lsr #8
+	bic r0, r0, #0x0000ff00
+	; r0 = 00vv00uu
+	PIXEL_LOOKUP_TO r3
 	orr r4, r4, r3, lsl #8		; pixel << 8
+	; 11c
 
+	; r6 = v3v2u3u2
 	; pixel 2
-	and r0, r7, #0xff			; u2
-	mov r1, r7, lsr #8
-	and r1, r1, #0xff			; v2
-	PIXEL_LOOKUP_TO R3
+	bic r0, r6, #0x0000ff00
+	; r0 = XXvv00uu
+	PIXEL_LOOKUP_TO r3
 	orr r4, r4, r3, lsl #16		; pixel << 16
+	; 11c
 
 	; pixel 3
-	mov r0, r7, lsr #16
-	and r0, r0, #0xff			; u1
-	mov r1, r7, lsr #24			; v1
-	PIXEL_LOOKUP_TO R3
+	mov r0, r6, lsr #8
+	bic r0, r0, #0x0000ff00
+	; r0 = 00vv00uu
+	PIXEL_LOOKUP_TO r3
 	orr r4, r4, r3, lsl #24		; pixel << 24
+	; 11c
 
-	str r4, [r12], #4			; finally write 8 pixels to the screen!
-	str r4, [r2], #4
-	; 4c
+	; r7 = v1v0u1u0
+	; pixel 4
+	bic r0, r7, #0x0000ff00
+	; r0 = XXvv00uu
+	PIXEL_LOOKUP_TO r5
+	; 10c
 
-	; 6.5c + 4*12c + 4c = 59c
-	; 40*59c = 2360c + 419 dc?
+	; pixel 5
+	mov r0, r7, lsr #8
+	bic r0, r0, #0x0000ff00
+	; r0 = 00vv00uu
+	PIXEL_LOOKUP_TO r3
+	orr r5, r5, r3, lsl #8		; pixel << 8
+	; 11c
+
+	; r8 = v3v2u3u2
+	; pixel 6
+	bic r0, r8, #0x0000ff00
+	; r0 = XXvv00uu
+	PIXEL_LOOKUP_TO r3
+	orr r5, r5, r3, lsl #16		; pixel << 16
+	; 11c
+
+	; pixel 7
+	mov r0, r8, lsr #8
+	bic r0, r0, #0x0000ff00
+	; r0 = 00vv00uu
+	PIXEL_LOOKUP_TO r3
+	orr r5, r5, r3, lsl #24		; pixel << 24
+	; 11c
+
+	stmia r12!, {r4-r5}			; finally write 8 pixels to the screen!
+	stmia r2!, {r4-r5}
+	; 8c
+
+	; 6.5+10+11+11+11+8 = 58c
 
 	.endr
 
+	; 58c * 40 = 2320c
+
 	add r2, r2, #Screen_Stride
 	add r12, r12, #Screen_Stride
-	cmp r12, r5
+
+	; r9 does triple duty! Use top byte as line counter!
+	adds r9, r9, #0x01<<24
+	cmp r9, #Screen_Height<<23
 	blt .1
 	; 7c
 
