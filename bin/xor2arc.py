@@ -17,11 +17,11 @@ def main(options):
     if options.mode == 9:
         pixels_per_byte=2
         pack=arc.pack_4bpp
-        pixel_max=16
+        pixel_max=options.pixel_max or 16
     elif options.mode == 13:
         pixels_per_byte=1
         pack=arc.pack_8bpp
-        pixel_max=256
+        pixel_max=options.pixel_max or 256
     else:
         print>>sys.stderr,'FATAL: invalid mode: %d'%options.mode
         sys.exit(1)
@@ -36,6 +36,8 @@ def main(options):
             xs=[]
             for p in range(0,pixels_per_byte):
                 c = (pixel_max * (x+p) / width) ^ (pixel_max * y / height)
+                if pixels_per_byte == 1 and pixel_max == 16:
+                    c = c | (c << 4)
                 xs.append(c)
             assert len(xs)==pixels_per_byte
             pixel_data.append(pack(xs))
@@ -52,6 +54,7 @@ if __name__=='__main__':
     parser=argparse.ArgumentParser()
 
     parser.add_argument('-o',dest='output_path',metavar='FILE',help='output ARC data to %(metavar)s')
+    parser.add_argument('--pixel_max',type=int,help='max pixel value')
     parser.add_argument('mode',type=int,help='screen mode')
     parser.add_argument('xor_size',type=int,help='size of the texture')
     main(parser.parse_args())

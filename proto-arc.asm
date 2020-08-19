@@ -10,10 +10,12 @@
 .equ Screen_Banks, 3
 .equ Screen_Mode, 9
 .equ Screen_Width, 320
-.equ Screen_Height, 256
+.equ Screen_Height, 240
+.equ Mode_Height, 256
 .equ Screen_PixelsPerByte, 2
 .equ Screen_Stride, Screen_Width/Screen_PixelsPerByte
 .equ Screen_Bytes, Screen_Stride*Screen_Height
+.equ Mode_Bytes, Screen_Stride*Mode_Height
 
 .include "lib/swis.h.asm"
 
@@ -44,12 +46,12 @@ main:
 	MOV r0, #DynArea_Screen
 	SWI OS_ReadDynamicArea
 	MOV r0, #DynArea_Screen
-	MOV r2, #Screen_Bytes * Screen_Banks
+	MOV r2, #Mode_Bytes * Screen_Banks
 	SUBS r1, r2, r1
 	SWI OS_ChangeDynamicArea
 	MOV r0, #DynArea_Screen
 	SWI OS_ReadDynamicArea
-	CMP r1, #Screen_Bytes * Screen_Banks
+	CMP r1, #Mode_Bytes * Screen_Banks
 	ADRCC r0, error_noscreenmem
 	SWICC OS_GenerateError
 
@@ -403,19 +405,25 @@ get_next_screen_for_writing:
 .include "lib/rocket.asm"
 .include "lib/mode9-palette.asm"
 
-.macro PIXEL_LOOKUP_TO_R3
-	add r0, r0, r2				; v += offset
+; if rUV = 00vv00uu
+; if rOF = 00aa00bb
+; add together then mask?
+;	add r2, r0, r1
+;	and r3, r2, #0xff
+;	add r3, r11, r3
+;	ldrb reg, [r3, r2, lsr #8]	; would work for 256 texture
+
+.macro PIXEL_LOOKUP_TO reg
+	add r0, r0, r8				; v += offset
 	and r0, r0, #0xff			; tex_size = 256
 
-	add r1, r1, r2				; v += offset
+	add r1, r1, r9				; v += offset
 	and r1, r1, #0xff			; tex_size = 256
 
-	add r1, r11, r1, lsl #7		; xor_texture[v * 128]
-	add r1, r1, r0,	asr #1		; xor_texture[v * 128 + u/2]
-	ldrb r3, [r1]
-	tst r0, #1					; u%2
-	andeq r3, r3, #0x0f			; left-hand pixel
-	movne r3, r3, lsr #4		; right-hand pixel
+	add r0, r11, r0				; xor_texture + u
+	; 5c
+	ldrb \reg, [r0, r1, lsl #8]	; xor_texture + u + v * 256
+	; 4c
 .endm
 
 tunnel_fx:
@@ -423,80 +431,72 @@ tunnel_fx:
 
 	mov r0, #0
 	bl rocket_sync_get_val_hi	; offset
-	mov r2, r1
+	mov r8, r1
+
+	mov r0, #1
+	bl rocket_sync_get_val_hi	; offset
+	mov r9, r1
 
 	ldr r12, screen_addr
+	add r2, r12, #Screen_Stride
 	add r5, r12, #Screen_Bytes
 
-	adr r11, xor_texture		; 256x256 pixels = 128x256 bytes
-	adr r10, tunnel_map			; 320x256 half-words
+	adr r11, xor_texture		; 256x256 pixels = 256x256 bytes
+	adr r10, tunnel_map			; 160x128 half-words
 
 .1:
-	ldmia r10!, {r6-r9}			; 8 pixels worth of (u,v)
+    .rept Screen_Stride / 4
+	ldmia r10!, {r6-r7}			; 4 pixels worth of (u,v)
+	; 3+2*1.25 = 6.5c
 
-	; word = v1u1v0u0
-
+	; tunnel word = v1u1v0u0
 	; pixel 0
 	and r0, r6, #0xff			; u0
 	mov r1, r6, lsr #8
 	and r1, r1, #0xff			; v0
-	PIXEL_LOOKUP_TO_R3
-	mov r4, r3					; pixel << 0
+	PIXEL_LOOKUP_TO R4
+	; 3+9 = 12c
 
 	; pixel 1
 	mov r0, r6, lsr #16
 	and r0, r0, #0xff			; u1
 	mov r1, r6, lsr #24			; v1
-	PIXEL_LOOKUP_TO_R3
-	orr r4, r4, r3, lsl #4			; pixel << 4
+	PIXEL_LOOKUP_TO R3
+	orr r4, r4, r3, lsl #8		; pixel << 8
 
 	; pixel 2
 	and r0, r7, #0xff			; u2
 	mov r1, r7, lsr #8
 	and r1, r1, #0xff			; v2
-	PIXEL_LOOKUP_TO_R3
-	orr r4, r4, r3, lsl #8			; pixel << 8
+	PIXEL_LOOKUP_TO R3
+	orr r4, r4, r3, lsl #16		; pixel << 16
 
 	; pixel 3
 	mov r0, r7, lsr #16
 	and r0, r0, #0xff			; u1
 	mov r1, r7, lsr #24			; v1
-	PIXEL_LOOKUP_TO_R3
-	orr r4, r4, r3, lsl #12			; pixel << 12
-
-	; pixel 4
-	and r0, r8, #0xff			; u0
-	mov r1, r8, lsr #8
-	and r1, r1, #0xff			; v0
-	PIXEL_LOOKUP_TO_R3
-	orr r4, r4, r3, lsl #16			; pixel << 16
-
-	; pixel 5
-	mov r0, r8, lsr #16
-	and r0, r0, #0xff			; u1
-	mov r1, r8, lsr #24			; v1
-	PIXEL_LOOKUP_TO_R3
-	orr r4, r4, r3, lsl #20			; pixel << 20
-
-	; pixel 6
-	and r0, r9, #0xff			; u2
-	mov r1, r9, lsr #8
-	and r1, r1, #0xff			; v2
-	PIXEL_LOOKUP_TO_R3
-	orr r4, r4, r3, lsl #24			; pixel << 24
-
-	; pixel 7
-	mov r0, r9, lsr #16
-	and r0, r0, #0xff			; u1
-	mov r1, r9, lsr #24			; v1
-	PIXEL_LOOKUP_TO_R3
-	orr r4, r4, r3, lsl #28			; pixel << 28
+	PIXEL_LOOKUP_TO R3
+	orr r4, r4, r3, lsl #24		; pixel << 24
 
 	str r4, [r12], #4			; finally write 8 pixels to the screen!
+	str r4, [r2], #4
+	; 4c
+
+	; 6.5c + 4*12c + 4c = 59c
+	; 40*59c = 2360c + 419 dc?
+
+	.endr
+
+	add r2, r2, #Screen_Stride
+	add r12, r12, #Screen_Stride
 	cmp r12, r5
 	blt .1
+	; 7c
+
+	; 2367c per row * 128 = 302,976c per screen
 
 	ldr pc, [sp], #4
+
 
 ; ============================================================================
 ; Data Segment
