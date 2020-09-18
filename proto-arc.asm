@@ -554,10 +554,12 @@ blue_palette:
 
 ; (u,v) coordinates interleaved, 1 byte each
 ; 1 word = 2 pixels worth
+.p2align 6
 tunnel_map:
 .incbin "data/tun.bin"
 
 ; MODE 9 texture, 4 bpp x 2
+.p2align 6
 xor_texture:
 .incbin "data/xor.bin"
 
