@@ -152,7 +152,9 @@ main_loop:
 
 	; DO STUFF HERE!
 	bl get_next_screen_for_writing
-	bl tunnel_fx
+	ldr r8, screen_addr
+	bl screen_cls
+	bl stacked_plot_fx
 	bl show_screen_at_vsync
 
 	; exit if Escape is pressed
@@ -415,114 +417,174 @@ get_next_screen_for_writing:
 	; 8c
 .endm
 
-tunnel_fx:
+.equ Stacked_Plot_Z_Start, Screen_Height-4
+.equ Stacked_Plot_Z_Step, 8
+.equ Stacked_Plot_X_Step, 8
+
+stacked_plot_fx:
 	str lr, [sp, #-4]!
 
-	mov r0, #0
-	bl rocket_sync_get_val_hi	; offset
-	mov r9, r1
-
-	mov r0, #1
-	bl rocket_sync_get_val_hi	; offset
-	orr r9, r9, r1, lsl #16		; 00bb00aa
-
+; R0=startx, R1=starty, R2=endx, R3=endy, R4=colour, R12=screen_addr
 	ldr r12, screen_addr
-	add r2, r12, #Screen_Stride
-	add r5, r12, #Screen_Bytes
 
-	adr r11, xor_texture		; 256x256 pixels = 256x256 bytes
-	adr r10, tunnel_map			; 160x128 half-words
+	; Reset Y-buffer
+	bl y_buffer_reset
 
-.1:
-    .rept Screen_Stride / 8
-	ldmia r10!, {r5-r8}			; 8 pixels worth of (u,v)
-	; 3+4*1.25 = 8c
-
-	; r5 = v1v0u1u0
-	; pixel 0
-	bic r0, r5, #0x0000ff00
-	; r0 = XXvv00uu
-	PIXEL_LOOKUP_TO r4
-	; 10c
-
-	; pixel 1
-	mov r0, r5, lsr #8
-	bic r0, r0, #0x0000ff00
-	; r0 = 00vv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r4, r4, r3, lsl #8		; pixel << 8
-	; 11c
-
-	; r6 = v3v2u3u2
-	; pixel 2
-	bic r0, r6, #0x0000ff00
-	; r0 = XXvv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r4, r4, r3, lsl #16		; pixel << 16
-	; 11c
-
-	; pixel 3
-	mov r0, r6, lsr #8
-	bic r0, r0, #0x0000ff00
-	; r0 = 00vv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r4, r4, r3, lsl #24		; pixel << 24
-	; 11c
-
-	; r7 = v1v0u1u0
-	; pixel 4
-	bic r0, r7, #0x0000ff00
-	; r0 = XXvv00uu
-	PIXEL_LOOKUP_TO r5
-	; 10c
-
-	; pixel 5
-	mov r0, r7, lsr #8
-	bic r0, r0, #0x0000ff00
-	; r0 = 00vv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r5, r5, r3, lsl #8		; pixel << 8
-	; 11c
-
-	; r8 = v3v2u3u2
-	; pixel 6
-	bic r0, r8, #0x0000ff00
-	; r0 = XXvv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r5, r5, r3, lsl #16		; pixel << 16
-	; 11c
-
-	; pixel 7
-	mov r0, r8, lsr #8
-	bic r0, r0, #0x0000ff00
-	; r0 = 00vv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r5, r5, r3, lsl #24		; pixel << 24
-	; 11c
-
-	stmia r12!, {r4-r5}			; finally write 8 pixels to the screen!
-	stmia r2!, {r4-r5}
-	; 6.5c*2 = 13c
-
-	; 8+43+43+13 = 
-
-	.endr
-
-	; 103c * 20 = 2060c + DRAM per row
-
-	add r2, r2, #Screen_Stride
-	add r12, r12, #Screen_Stride
-
-	; r9 does triple duty! Use top byte as line counter!
-	adds r9, r9, #0x01<<24
-	cmp r9, #Screen_Height<<23
-	blt .1
-	; 8c
-
-	; 2068c per row * 128 = 248,160c + DRAM per screen
+	; Draw lines from bottom to top (Z)
+	mov r5, #Stacked_Plot_Z_Start
+	.1:
+	bl stacked_plot_line
+	subs r5, r5, #Stacked_Plot_Z_Step
+	bpl .1
 
 	ldr pc, [sp], #4
 
+stacked_plot_line:
+	stmfd sp!, {r5, lr}
+
+	; Plot line from left to right
+	mov r6, #0
+
+	; Get y = fn(x, z)
+	; r5=z, r6=x, returns r7=y
+	; must preserve r0,r1
+	bl stacked_fn
+	mov r0, r6
+	mov r1, r7
+
+	.1:
+	add r6, r6, #Stacked_Plot_X_Step
+	cmp r6, #Screen_Width
+	bge .2
+
+	; Get y' = fn(x', z)
+	bl stacked_fn
+	mov r2, r6
+	mov r3, r7
+
+	stmfd sp!, {r5,r6}
+
+	mov r4, #0x0f
+
+	; Draw line from (x,y) to (x',y')
+	bl drawline
+	; Now r0=x', r1=y'
+
+	ldmfd sp!, {r5,r6}
+	b .1
+	.2:
+
+	ldmfd sp!, {r5, pc}
+
+; r5=z, r6=x, returns r7=y = fn(x, z)
+; must preserve r0,r1
+stacked_fn:
+	; 
+	adr r9, sine_table
+
+	ldr r7, rocket_sync_time	; t
+	add r7, r7, r5				; z+t
+	and r7, r7, #255
+	ldr r10, [r9, r7, lsl #2]	; sin(z+t)
+	mov r10, r10, asr #4		; 1.12
+
+	add r8, r6, r7
+	and r8, r8, #255			; table size
+	ldr r7, [r9, r8, lsl #2]	; sin(x)
+	mov r7, r7, asr #4			; 1.12
+
+	mul r8, r10, r7				; 1.8 x 1.8 = 1.24
+	mov r7, r8, asr #19			; max +-32 pixels
+
+	; Add z to y to make the stack.
+	add r7, r7, r5
+	mov pc, lr
+
+y_buffer_reset:
+	mov r0, #0
+	mov r1, #Screen_Height
+	adr r2, y_buffer
+	add r0, r2, #Screen_Width*4
+	.1:
+	str r1, [r2], #4
+	cmp r2, r0
+	blt .1
+	mov pc, lr
+
+
+; R0=startx, R1=starty, R2=endx, R3=endy, R4=colour, R12=screen_addr
+; Trashes r5, r6, r7, r8, r9, r10, r11
+drawline:
+	str lr, [sp, #-4]!			; push lr on stack
+
+	subs r5, r2, r0				; r5 = dx = endx - startx
+	rsblt r5, r5, #0			; r5 = abs(dx)
+
+	cmp r0,r2					; startx < endx?
+	movlt r7, #1				; r7 = sx = 1
+	movge r7, #-1				; r7 = sx = -1
+
+	subs r6, r3, r1				; r6 = dy = endy - starty
+	rsblt r6, r6, #0			; r6 = abs(dy)
+	rsb r6, r6, #0				; r6 = -abs(dy)
+
+	cmp r1, r3					; starty < endy?
+	movlt r8, #1				; r8 = sy = 1
+	movge r8, #-1				; r8 = sy = -1
+
+	add r9, r5, r6				; r9 = dx + dy = err
+
+.1:
+	cmp r0, r2					; x0 == x1?
+	cmpeq r1, r3				; y0 == y1?
+	ldreq pc, [sp], #4			; rts
+
+	; there will be faster line plot algorithms by keeping track of
+	; screen pointer then flushing a byte or word when moving to next row
+	bl plot_pixel
+
+	mov r10, r9, lsl #1			; r10 = err * 2
+	cmp r10, r6					; e2 >= dy?
+	addge r9, r9, r6			; err += dy
+	addge r0, r0, r7			; x0 += sx
+
+	cmp r10, r5					; e2 <= dx?
+	addle r9, r9, r5			; err += dx
+	addle r1, r1, r8			; y0 += sy
+
+	b .1
+
+; R0=x, R1=y, R4=colour, R12=screen_addr, trashes r10, r11
+plot_pixel:
+	cmp r1, #Screen_Height
+	movge pc, lr
+	cmp r1, #0
+	movmi pc, lr
+
+	adr r10, y_buffer
+	ldr r11, [r10, r0, lsl #2]	; y_buffer[x]
+	cmp r1, r11
+	movge pc, lr
+	str r1, [r10, r0, lsl #2]	; y_buffer[x] = y
+
+	; ptr = screen_addr + starty * screen_stride + startx DIV 2
+	add r10, r12, r1, lsl #7	; r10 = screen_addr + starty * 128
+	add r10, r10, r1, lsl #5	; r10 += starty * 32 = starty * 160
+	add r10, r10, r0, lsr #1	; r10 += startx DIV 2
+
+	ldrb r11, [r10]				; load screen byte
+
+	tst r0, #1					; odd or even pixel?
+	andeq r11, r11, #0xF0		; mask out left hand pixel
+	orreq r11, r11, r4			; mask in colour as left hand pixel
+
+	andne r11, r11, #0x0F		; mask out right hand pixel
+	orrne r11, r11, r4, lsl #4	; mask in colour as right hand pixel
+
+	strb r11, [r10]				; store screen byte
+	mov pc, lr
+
+.include "lib/mode9-screen.asm"
 
 ; ============================================================================
 ; Data Segment
@@ -552,16 +614,9 @@ blue_palette:
 	.long 0x00EE0000
 	.long 0x00FF0000
 
-; (u,v) coordinates interleaved, 1 byte each
-; 1 word = 2 pixels worth
 .p2align 6
-tunnel_map:
-.incbin "data/tun.bin"
-
-; MODE 9 texture, 4 bpp x 2
-.p2align 6
-xor_texture:
-.incbin "data/xor.bin"
+sine_table:
+	.incbin "data\sine.bin"
 
 ; ============================================================================
 ; BSS Segment
@@ -575,3 +630,7 @@ palette_osword_block:
     ; green
     ; blue
     ; (pad)
+
+.p2align 6
+y_buffer:
+	.skip Screen_Width

@@ -289,6 +289,7 @@ plot_polygon_colour:
 	.long 0
 
 ; R0=startx, R1=starty, R2=endx, R3=endy, R4=colour, R12=screen_addr
+; Trashes r5, r6, r7, r8, r9, r10, r11
 drawline:
 	str lr, [sp, #-4]!			; push lr on stack
 
