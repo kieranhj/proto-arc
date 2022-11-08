@@ -212,7 +212,7 @@ debug_write_vsync_count:
 	mov pc, r14
 
 debug_string:
-	.skip 8
+	.skip 16
 .endif
 
 get_screen_addr:
@@ -585,6 +585,7 @@ plot_pixel:
 	mov pc, lr
 
 .include "lib/mode9-screen.asm"
+.include "lib/maths.asm"
 
 ; ============================================================================
 ; Data Segment
