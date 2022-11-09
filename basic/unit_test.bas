@@ -2,19 +2,23 @@ MODE 0
 precision=65536
 err_delta=1/256
 :
-DIM code 4096
+DIM code 65536
 OSCLI "LOAD <Test$Dir>.CodeLib "+STR$~(code)
 dot_product=code+0
 dot_product_unit=code+4
 matrix_multiply_vector=code+8
 unit_matrix_multiply_vector=code+12
+sine=code+16
+cosine=code+20
 :
+PROCtest_sine
+REPEAT UNTIL GET
 PROCtest_dot_product
 END
 :
 DEF PROCtest_dot_product
-PRINT"Running dot product tests."
-num_dp_tests=18:data_dp_tests=53
+CLS:PRINT"Running dot product tests."
+num_dp_tests=18:data_dp_tests=60
 :
 DIM vec1 12, vec2 12
 RESTORE data_dp_tests
@@ -77,3 +81,16 @@ DATA 0.0, 0.0, -256,    0.0, 0.0, 1.0
 DATA -256.0, 0.0, 0.0,  -1.0, 0.0, 0.0
 DATA 50.0, 100.0, 200.0, 0.1, 0.2, 0.3
 DATA -200.0, 100.0, -500.0,  0.99, -0.99, 0.99
+:
+DEF PROCtest_sine
+failed=0
+FOR degs=0 TO 360 STEP 10
+rad=degs/360:verify_cos=COS(RAD(degs)):verify_sin=SIN(RAD(degs))
+A%=FNfloat_to_fp(rad)
+s=FNfp_to_float(USR(sine)):c=FNfp_to_float(USR(cosine))
+PRINT "deg=";degs;" rad=";rad;" rad_fp=";A%;" s=";s;" c=";c;" sin=";verify_sin;" cos=";verify_cos;" ";
+error=ABS(s-verify_sin)
+IF error<err_delta PRINT "PASS" ELSE PRINT "FAIL error=";error:failed=failed+1
+NEXT
+PRINT failed;" tests FAILED."
+ENDPROC

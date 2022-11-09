@@ -2,7 +2,7 @@
 ; Library of code modules.
 ; ============================================================================
 
-.equ _DEBUG, 1
+.equ _DEBUG, 0
 .include "lib/swis.h.asm"
 
 .org 0x0000
@@ -15,6 +15,8 @@ b dot_product
 b dot_product_unit
 b matrix_multiply_vector
 b unit_matrix_multiply_vector
+b sine
+b cosine
 
 ; ============================================================================
 ; Code modules.

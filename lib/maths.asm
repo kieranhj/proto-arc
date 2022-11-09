@@ -4,7 +4,7 @@
 ; ============================================================================
 
 .equ PRECISION_BITS, 16
-.equ PRECISION_SHIFT, 8
+.equ MULTIPLICATION_SHIFT, PRECISION_BITS/2
 
 ; General notes.
 ;  Say s10.10, then lose 5 bits of precision at multiplication?
@@ -40,12 +40,12 @@ dot_product:
     ldmia r1, {r3-r5}                   ; [s10.10]
     ldmia r2, {r6-r8}                   ; [s10.10]
 
-    mov r3, r3, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r4, r4, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r5, r5, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r6, r6, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r7, r7, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r8, r8, asr #PRECISION_SHIFT    ; [s10.5]
+    mov r3, r3, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r4, r4, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r5, r5, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r6, r6, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r7, r7, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r8, r8, asr #MULTIPLICATION_SHIFT    ; [s10.5]
 
     mul r0, r3, r6                      ; r0 = a1 * b1  [s20.10]
     mla r0, r4, r7, r0                  ;   += a2 * b2  [s20.10]
@@ -93,12 +93,12 @@ matrix_multiply_vector:
     ldmia r0!, {r3-r5}                  ; [ a b c ][s10.10]
     ldmia r1, {r6-r8}                   ; [ x y z ][s10.10]
 
-    mov r3, r3, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r4, r4, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r5, r5, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r6, r6, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r7, r7, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r8, r8, asr #PRECISION_SHIFT    ; [s10.5]
+    mov r3, r3, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r4, r4, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r5, r5, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r6, r6, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r7, r7, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r8, r8, asr #MULTIPLICATION_SHIFT    ; [s10.5]
 
     mul r9, r3, r6                      ; r9 = a * x  [s20.10]
     mla r9, r4, r7, r9                  ;   += b * y  [s20.10]
@@ -107,9 +107,9 @@ matrix_multiply_vector:
     str r9, [r2, #0]                    ; vectorB[x] = r9
 
     ldmia r0!, {r3-r5}                  ; [ d e f ][s10.10]
-    mov r3, r3, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r4, r4, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r5, r5, asr #PRECISION_SHIFT    ; [s10.5]
+    mov r3, r3, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r4, r4, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r5, r5, asr #MULTIPLICATION_SHIFT    ; [s10.5]
 
     mul r9, r3, r6                       ; r9 = d * x  [s20.10]
     mla r9, r4, r7, r9                  ;    += e * y  [s20.10]
@@ -117,9 +117,9 @@ matrix_multiply_vector:
     str r9, [r2, #4]                    ; vectorB[y] = r9
 
     ldmia r0!, {r3-r5}                  ; [ g h i ][s10.10]
-    mov r3, r3, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r4, r4, asr #PRECISION_SHIFT    ; [s10.5]
-    mov r5, r5, asr #PRECISION_SHIFT    ; [s10.5]
+    mov r3, r3, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r4, r4, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r5, r5, asr #MULTIPLICATION_SHIFT    ; [s10.5]
 
     mul r9, r3, r6                      ; r9 = g * x  [s20.10]
     mla r9, r4, r7, r9                  ;   += h * y  [s20.10]
@@ -160,74 +160,7 @@ unit_matrix_multiply_vector:
 
     mov pc, lr
 
-.if 0
-run_dot_product_tests:
-    stmfd sp!, {r0-r12, lr}
-
-    adr r10, dot_product_tests
-    mov r11, #NUM_dot_product_tests
-    .1:
-    mov r0, r10
-    add r1, r10, #12
-    ldr r12, [r10, #24]
-
-    bl dot_product
-
-    cmp r2, r12
-    bne unit_test_error
-
-    add r10, r10, #28
-    subs r11, r11, #1
-    bne .1
-
-    ldmfd sp!, {r0-r12, pc}
-
-run_dot_product_unit_tests:
-    stmfd sp!, {r0-r12, lr}
-
-    adr r10, dot_product_unit_tests
-    mov r11, #NUM_dot_product_unit_tests
-    .1:
-    mov r0, r10
-    add r1, r10, #12
-    ldr r12, [r10, #24]
-
-    bl dot_product_unit
-
-    cmp r2, r12
-    bne unit_test_error
-
-    add r10, r10, #28
-    subs r11, r11, #1
-    bne .1
-
-    ldmfd sp!, {r0-r12, pc}
-
-
-; R2=return dot product value.
-unit_test_error:
-    mov r0, r11
-    bl debug_write_fp
-
-    mov r0, r10
-    bl debug_write_vector
-    add r0, r10, #12
-    bl debug_write_vector
-    ldr r0, [r10, #24]
-    bl debug_write_fp
-    mov r0, r2
-    bl debug_write_fp
-
-	adr r0, error_vector_unit_test
-	swi OS_GenerateError
-    ; stop?
-
-error_vector_unit_test:
-	.long 0
-	.byte "Vector failed unit test!"
-	.align 4
-	.long 0
-
+.if _DEBUG
 ; R0=vector ptr.
 debug_write_vector:
     stmfd sp!, {r0, r3, lr}
@@ -252,58 +185,16 @@ debug_write_fp:
     swi OS_WriteC
     ldmfd sp!, {r1, r2}
     mov pc, lr
+.endif
 
 .macro FLOAT_TO_FP value
     .float 1<<PRECISION_BITS * (\value)
 .endm
 
-.macro test_dot_prod Ax, Ay, Az, Bx, By, Bz
-    ; vector A, vector B, expected result.
-    FLOAT_TO_FP \Ax
-    FLOAT_TO_FP \Ay
-    FLOAT_TO_FP \Az
-    FLOAT_TO_FP \Bx
-    FLOAT_TO_FP \By
-    FLOAT_TO_FP \Bz
-    FLOAT_TO_FP (\Ax * \Bx + \Ay * \By + \Az * \Bz)
+.macro VECTOR3 x, y, z
+    FLOAT_TO_FP \x
+    FLOAT_TO_FP \y
+    FLOAT_TO_FP \z
 .endm
 
-.equ NUM_dot_product_tests, 12
-
-dot_product_tests:
-; Unit vectors.
-test_dot_prod 3.0, 4.0, 5.0,  1.0, 0.0, 0.0
-test_dot_prod 3.0, 4.0, 5.0,  0.0, 1.0, 0.0
-test_dot_prod 3.0, 4.0, 5.0,  0.0, 0.0, 1.0
-
-; Zero vector.
-test_dot_prod 3.0, 4.0, 5.0,  0.0, 0.0, 0.0
-test_dot_prod 0.0, 0.0, 0.0,  100.0, 200.0, 300.0
-
-; Orthogonal vectors.
-test_dot_prod 10.0, 0.0, 0.0,  0.0, 20.0, 0.0
-test_dot_prod 0.0, 20.0, 0.0,  0.0, 0.0, 30.0
-test_dot_prod 0.0, 0.0, 30.0,  10.0, 0.0, 0.0
-
-; Negative vectors.
-test_dot_prod 10.0, 0.0, 0.0,  -1.0, 0.0, 0.0
-test_dot_prod 100.0, 200.0, 300.0,  -1.0, -1.0, -1.0
-test_dot_prod 100.0, 200.0, 300.0,  -1.0, -1.0, 1.0
-test_dot_prod -100.0, -200.0, -300.0,  -1.0, -1.0, -1.0
-
-.equ NUM_dot_product_unit_tests, 6
-
-dot_product_unit_tests:
-; Maximum bits.
-test_dot_prod 1023.99, 0.0, 0.0,  1.0, 0.0, 0.0
-test_dot_prod 0.0, 1023.99, 0.0,  0.0, -1.0, 0.0
-test_dot_prod 0.0, 0.0, -1024,  0.0, 0.0, 1.0
-test_dot_prod -1024.0, 0.0, 0.0  -1.0, 0.0, 0.0
-
-test_dot_prod 100.0, 200.0, 300.0, 0.1, 0.2, 0.3
-test_dot_prod -300.0, 200.0, -100.0,  0.9999, -0.9999, 0.9999
-
-; Thoughts - tests are useful! But writing tests in assembler is
-; pain! Need a way to write these in BBC BASIC and test library fns.
-; etc. in isolation.
-.endif
+.include "lib/sine.asm"
