@@ -5,12 +5,18 @@ err_delta=1/256
 DIM code 65536
 OSCLI "LOAD <Test$Dir>.CodeLib "+STR$~(code)
 dot_product=code+0
-dot_product_unit=code+4
-matrix_multiply_vector=code+8
-unit_matrix_multiply_vector=code+12
-sine=code+16
-cosine=code+20
+matrix_multiply_vector=code+4
+matrix_multiply=code+8
+sine=code+12
+cosine=code+16
+make_rotate_x=code+20
+make_rotate_y=code+24
+make_rotate_z=code+28
 :
+PROCtest_multiply_vectors
+REPEAT UNTIL GET
+PROCtest_make_matrices
+REPEAT UNTIL GET
 PROCtest_sine
 REPEAT UNTIL GET
 PROCtest_dot_product
@@ -83,6 +89,7 @@ DATA 50.0, 100.0, 200.0, 0.1, 0.2, 0.3
 DATA -200.0, 100.0, -500.0,  0.99, -0.99, 0.99
 :
 DEF PROCtest_sine
+CLS
 failed=0
 FOR degs=0 TO 360 STEP 10
 rad=degs/360:verify_cos=COS(RAD(degs)):verify_sin=SIN(RAD(degs))
@@ -93,4 +100,157 @@ error=ABS(s-verify_sin)
 IF error<err_delta PRINT "PASS" ELSE PRINT "FAIL error=";error:failed=failed+1
 NEXT
 PRINT failed;" tests FAILED."
+ENDPROC
+:
+DEF PROCprintx_matrix(mat)
+PRINT "[";~mat!0;",";~mat!4;",";~mat!8;"]"
+PRINT "[";~mat!12;",";~mat!16;",";~mat!20;"]"
+PRINT "[";~mat!24;",";~mat!28;",";~mat!32;"]"
+ENDPROC
+DEF PROCprintf_matrix(mat)
+PRINT "[";FNfp_to_float(mat!0);",";FNfp_to_float(mat!4);",";FNfp_to_float(mat!8);"]"
+PRINT "[";FNfp_to_float(mat!12);",";FNfp_to_float(mat!16);",";FNfp_to_float(mat!20);"]"
+PRINT "[";FNfp_to_float(mat!24);",";FNfp_to_float(mat!28);",";FNfp_to_float(mat!32);"]"
+ENDPROC
+:
+DEF PROCmultiply_vector(mat,vec,res_float)
+a=FNfp_to_float(mat!0):b=FNfp_to_float(mat!4):c=FNfp_to_float(mat!8)
+d=FNfp_to_float(mat!12):e=FNfp_to_float(mat!16):f=FNfp_to_float(mat!20)
+g=FNfp_to_float(mat!24):h=FNfp_to_float(mat!28):i=FNfp_to_float(mat!32)
+x=FNfp_to_float(vec!0):y=FNfp_to_float(vec!4):z=FNfp_to_float(vec!8)
+res_float(0)=a*x + b*y + c*z
+res_float(1)=d*x + e*y + f*z
+res_float(2)=g*x + h*y + i*z
+ENDPROC
+:
+DEF PROCmultiply_matrix(mat1,mat1,mat_float)
+a1=FNfp_to_float(mat1!0):b1=FNfp_to_float(mat1!4):c1=FNfp_to_float(mat1!8)
+d1=FNfp_to_float(mat1!12):e1=FNfp_to_float(mat1!16):f1=FNfp_to_float(mat1!20)
+g1=FNfp_to_float(mat1!24):h1=FNfp_to_float(mat1!28):i1=FNfp_to_float(mat1!32)
+
+a2=FNfp_to_float(mat2!0):b2=FNfp_to_float(mat2!4):c2=FNfp_to_float(mat2!8)
+d2=FNfp_to_float(mat2!12):e2=FNfp_to_float(mat2!16):f2=FNfp_to_float(mat2!20)
+g2=FNfp_to_float(mat2!24):h2=FNfp_to_float(mat2!28):i2=FNfp_to_float(mat2!32)
+
+mat_float(0)=a1*a2 + b1*d2 + c1*g2
+mat_float(1)=a1*b2 + b1*e2 + c1*h2
+mat_float(2)=a1*c2 + b1*f2 + c1*i2
+mat_float(3)=d1*a2 + e1*d2 + f1*g2 
+mat_float(4)=d1*b2 + e1*e2 + f1*h2
+mat_float(5)=d1*c2 + e1*f2 + f1*i2
+mat_float(6)=g1*a2 + h1*d2 + i1*g2
+mat_float(7)=g1*b2 + h1*e2 + i1*h2
+mat_float(8)=g1*c2 + h1*f2 + i1*i2
+ENDPROC
+:
+DEF PROCtest_make(name$,A%,C%,func)
+PRINT name$;" with R0=";FNfp_to_float(A%)
+CALL func
+PROCprintf_matrix(C%)
+ENDPROC
+
+DEF PROCtest_make_matrices
+CLS
+DIM matrix 36
+PROCtest_make("rotate_x", FNfloat_to_fp(0), matrix, make_rotate_x)
+PROCtest_make("rotate_x", FNfloat_to_fp(32), matrix, make_rotate_x)
+PROCtest_make("rotate_x", FNfloat_to_fp(64), matrix, make_rotate_x)
+PROCtest_make("rotate_x", FNfloat_to_fp(128), matrix, make_rotate_x)
+PROCtest_make("rotate_x", FNfloat_to_fp(192), matrix, make_rotate_x)
+REPEAT UNTIL GET
+CLS
+PROCtest_make("rotate_x", FNfloat_to_fp(0), matrix, make_rotate_y)
+PROCtest_make("rotate_y", FNfloat_to_fp(32), matrix, make_rotate_y)
+PROCtest_make("rotate_y", FNfloat_to_fp(64), matrix, make_rotate_y)
+PROCtest_make("rotate_y", FNfloat_to_fp(128), matrix, make_rotate_y)
+PROCtest_make("rotate_y", FNfloat_to_fp(192), matrix, make_rotate_y)
+REPEAT UNTIL GET
+CLS
+PROCtest_make("rotate_z", FNfloat_to_fp(0), matrix, make_rotate_z)
+PROCtest_make("rotate_z", FNfloat_to_fp(32), matrix, make_rotate_z)
+PROCtest_make("rotate_z", FNfloat_to_fp(64), matrix, make_rotate_z)
+PROCtest_make("rotate_z", FNfloat_to_fp(128), matrix, make_rotate_z)
+PROCtest_make("rotate_z", FNfloat_to_fp(192), matrix, make_rotate_z)
+ENDPROC
+:
+DEF PROCtest_multiply_vector(A%,x,y,z)
+DIM vec 12, res 12
+PROCmake_vec(vec, x, y, z)
+B%=vec:C%=res:CALL matrix_multiply_vector
+PROCprintf_vec("A:",vec):PROCprintf_vec("B:",res):PRINT
+ENDPROC
+:
+DEF PROCtest_multiply_vectors
+CLS
+DIM matrix 36
+PROCtest_make("rotate_x", FNfloat_to_fp(64), matrix, make_rotate_x)
+PROCtest_multiply_vector(matrix, 1,0,0)
+PROCtest_multiply_vector(matrix, 0,1,0)
+PROCtest_multiply_vector(matrix, 0,0,1)
+PROCtest_multiply_vector(matrix, 0,0,0)
+PROCtest_multiply_vector(matrix, -1,0,0)
+PROCtest_multiply_vector(matrix, 0,-1,0)
+PROCtest_multiply_vector(matrix, 0,0,-1)
+PROCtest_multiply_vector(matrix, 0.5,0.5,0.5)
+PROCtest_multiply_vector(matrix, 0,10,-10)
+REPEAT UNTIL GET
+CLS
+PROCtest_make("rotate_x", FNfloat_to_fp(-32), matrix, make_rotate_x)
+PROCtest_multiply_vector(matrix, 1,0,0)
+PROCtest_multiply_vector(matrix, 0,1,0)
+PROCtest_multiply_vector(matrix, 0,0,1)
+PROCtest_multiply_vector(matrix, 0,0,0)
+PROCtest_multiply_vector(matrix, -1,0,0)
+PROCtest_multiply_vector(matrix, 0,-1,0)
+PROCtest_multiply_vector(matrix, 0,0,-1)
+PROCtest_multiply_vector(matrix, 0.5,0.5,0.5)
+PROCtest_multiply_vector(matrix, 0,10,-10)
+REPEAT UNTIL GET
+CLS
+PROCtest_make("rotate_y", FNfloat_to_fp(-64), matrix, make_rotate_y)
+PROCtest_multiply_vector(matrix, 1,0,0)
+PROCtest_multiply_vector(matrix, 0,1,0)
+PROCtest_multiply_vector(matrix, 0,0,1)
+PROCtest_multiply_vector(matrix, 0,0,0)
+PROCtest_multiply_vector(matrix, -1,0,0)
+PROCtest_multiply_vector(matrix, 0,-1,0)
+PROCtest_multiply_vector(matrix, 0,0,-1)
+PROCtest_multiply_vector(matrix, 0.5,0.5,0.5)
+PROCtest_multiply_vector(matrix, 0,10,-10)
+REPEAT UNTIL GET
+CLS
+PROCtest_make("rotate_y", FNfloat_to_fp(128), matrix, make_rotate_y)
+PROCtest_multiply_vector(matrix, 1,0,0)
+PROCtest_multiply_vector(matrix, 0,1,0)
+PROCtest_multiply_vector(matrix, 0,0,1)
+PROCtest_multiply_vector(matrix, 0,0,0)
+PROCtest_multiply_vector(matrix, -1,0,0)
+PROCtest_multiply_vector(matrix, 0,-1,0)
+PROCtest_multiply_vector(matrix, 0,0,-1)
+PROCtest_multiply_vector(matrix, 0.5,0.5,0.5)
+PROCtest_multiply_vector(matrix, 0,10,-10)
+REPEAT UNTIL GET
+CLS
+PROCtest_make("rotate_z", FNfloat_to_fp(32), matrix, make_rotate_z)
+PROCtest_multiply_vector(matrix, 1,0,0)
+PROCtest_multiply_vector(matrix, 0,1,0)
+PROCtest_multiply_vector(matrix, 0,0,1)
+PROCtest_multiply_vector(matrix, 0,0,0)
+PROCtest_multiply_vector(matrix, -1,0,0)
+PROCtest_multiply_vector(matrix, 0,-1,0)
+PROCtest_multiply_vector(matrix, 0,0,-1)
+PROCtest_multiply_vector(matrix, 0.5,0.5,0.5)
+PROCtest_multiply_vector(matrix, 0,10,-10)
+REPEAT UNTIL GET
+CLS
+PROCtest_make("rotate_z", FNfloat_to_fp(64), matrix, make_rotate_z)
+PROCtest_multiply_vector(matrix, 1,0,0)
+PROCtest_multiply_vector(matrix, 0,1,0)
+PROCtest_multiply_vector(matrix, 0,0,1)
+PROCtest_multiply_vector(matrix, 0,0,0)
+PROCtest_multiply_vector(matrix, -1,0,0)
+PROCtest_multiply_vector(matrix, 0,-1,0)
+PROCtest_multiply_vector(matrix, 0,0,-1)
+PROCtest_multiply_vector(matrix, 0.5,0.5,0.5)
+PROCtest_multiply_vector(matrix, 0,10,-10)
 ENDPROC

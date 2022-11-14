@@ -11,12 +11,14 @@
 ; Jump table to functions.
 ; ============================================================================
 
-b dot_product
-b dot_product_unit
-b matrix_multiply_vector
-b unit_matrix_multiply_vector
-b sine
-b cosine
+b dot_product               ; +0
+b matrix_multiply_vector    ; +4
+b matrix_multiply           ; +8
+b sine                      ; +12
+b cosine                    ; +16
+b matrix_make_rotate_x      ; +20
+b matrix_make_rotate_y      ; +24
+b matrix_make_rotate_z      ; +28
 
 ; ============================================================================
 ; Code modules.

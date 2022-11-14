@@ -5,7 +5,6 @@
 .equ SINUS_TABLE_BITS, 13
 .equ SINUS_TABLE_SIZE, 1<<SINUS_TABLE_BITS
 .equ SINUS_TABLE_SHIFT, 32-SINUS_TABLE_BITS
-.equ QUARTER, 1<<(PRECISION_BITS-2)
 
 ; Sine.
 ; Parameters:
@@ -28,7 +27,7 @@ sine:
 ; Trashes: R9
 cosine:
     adr r9, sinus_table
-    add r0, r0, #QUARTER                    ; add PI/2
+    add r0, r0, #MATHS_CONST_QUARTER                    ; add PI/2
     mov r0, r0, asl #PRECISION_BITS         ; remove integer part
     mov r0, r0, lsr #SINUS_TABLE_SHIFT      ; remove insignificant bits
     ldr r0, [r9, r0, lsl #2]                ; lookup word
@@ -36,16 +35,17 @@ cosine:
 
 ; Sine and Cosine.
 ; Parameters:
-;  R0 = angle in brads
+;  R0 = angle in brads [0-255]
 ; Returns:
 ;  R0 = sin(angle)
 ;  R1 = cos(angle)
 ; Trashes: R9
 sin_cos:
     adr r9, sinus_table
-    add r1, r0, #QUARTER                    ; add PI/2
+    mov r0, r0, asr #8                      ; convert brads to radians
+    add r1, r0, #MATHS_CONST_QUARTER                    ; add PI/2
     mov r1, r1, asl #PRECISION_BITS         ; remove integer part
-    mov r1, r1, asr #SINUS_TABLE_SHIFT      ; remove insignificant bits
+    mov r1, r1, lsr #SINUS_TABLE_SHIFT      ; remove insignificant bits
     ldr r1, [r9, r1, lsl #2]                ; lookup word
     mov r0, r0, asl #PRECISION_BITS         ; remove integer part
     mov r0, r0, lsr #SINUS_TABLE_SHIFT      ; remove insignificant bits
