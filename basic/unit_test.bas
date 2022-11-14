@@ -12,7 +12,10 @@ cosine=code+16
 make_rotate_x=code+20
 make_rotate_y=code+24
 make_rotate_z=code+28
+make_identity=code+32
 :
+PROCtest_multiply_matrices
+REPEAT UNTIL GET
 PROCtest_multiply_vectors
 REPEAT UNTIL GET
 PROCtest_make_matrices
@@ -102,6 +105,11 @@ NEXT
 PRINT failed;" tests FAILED."
 ENDPROC
 :
+DEF PROCmake_matrix(mat,a,b,c,d,e,f,g,h,i)
+mat!0=FNfloat_to_fp(a):mat!4=FNfloat_to_fp(b):mat!8=FNfloat_to_fp(c)
+mat!12=FNfloat_to_fp(d):mat!16=FNfloat_to_fp(e):mat!20=FNfloat_to_fp(f)
+mat!24=FNfloat_to_fp(g):mat!28=FNfloat_to_fp(h):mat!32=FNfloat_to_fp(i)
+ENDPROC
 DEF PROCprintx_matrix(mat)
 PRINT "[";~mat!0;",";~mat!4;",";~mat!8;"]"
 PRINT "[";~mat!12;",";~mat!16;",";~mat!20;"]"
@@ -113,17 +121,17 @@ PRINT "[";FNfp_to_float(mat!12);",";FNfp_to_float(mat!16);",";FNfp_to_float(mat!
 PRINT "[";FNfp_to_float(mat!24);",";FNfp_to_float(mat!28);",";FNfp_to_float(mat!32);"]"
 ENDPROC
 :
-DEF PROCmultiply_vector(mat,vec,res_float)
+DEF PROCmultiply_vector(mat,vec,res)
 a=FNfp_to_float(mat!0):b=FNfp_to_float(mat!4):c=FNfp_to_float(mat!8)
 d=FNfp_to_float(mat!12):e=FNfp_to_float(mat!16):f=FNfp_to_float(mat!20)
 g=FNfp_to_float(mat!24):h=FNfp_to_float(mat!28):i=FNfp_to_float(mat!32)
 x=FNfp_to_float(vec!0):y=FNfp_to_float(vec!4):z=FNfp_to_float(vec!8)
-res_float(0)=a*x + b*y + c*z
-res_float(1)=d*x + e*y + f*z
-res_float(2)=g*x + h*y + i*z
+res!0=FNfloat_to_fp(a*x + b*y + c*z)
+res!4=FNfloat_to_fp(d*x + e*y + f*z)
+res!8=FNfloat_to_fp(g*x + h*y + i*z)
 ENDPROC
 :
-DEF PROCmultiply_matrix(mat1,mat1,mat_float)
+DEF PROCmultiply_matrix(mat1,mat1,matR)
 a1=FNfp_to_float(mat1!0):b1=FNfp_to_float(mat1!4):c1=FNfp_to_float(mat1!8)
 d1=FNfp_to_float(mat1!12):e1=FNfp_to_float(mat1!16):f1=FNfp_to_float(mat1!20)
 g1=FNfp_to_float(mat1!24):h1=FNfp_to_float(mat1!28):i1=FNfp_to_float(mat1!32)
@@ -132,15 +140,15 @@ a2=FNfp_to_float(mat2!0):b2=FNfp_to_float(mat2!4):c2=FNfp_to_float(mat2!8)
 d2=FNfp_to_float(mat2!12):e2=FNfp_to_float(mat2!16):f2=FNfp_to_float(mat2!20)
 g2=FNfp_to_float(mat2!24):h2=FNfp_to_float(mat2!28):i2=FNfp_to_float(mat2!32)
 
-mat_float(0)=a1*a2 + b1*d2 + c1*g2
-mat_float(1)=a1*b2 + b1*e2 + c1*h2
-mat_float(2)=a1*c2 + b1*f2 + c1*i2
-mat_float(3)=d1*a2 + e1*d2 + f1*g2 
-mat_float(4)=d1*b2 + e1*e2 + f1*h2
-mat_float(5)=d1*c2 + e1*f2 + f1*i2
-mat_float(6)=g1*a2 + h1*d2 + i1*g2
-mat_float(7)=g1*b2 + h1*e2 + i1*h2
-mat_float(8)=g1*c2 + h1*f2 + i1*i2
+matR!0=FNfloat_to_fp(a1*a2 + b1*d2 + c1*g2)
+matR!4=FNfloat_to_fp(a1*b2 + b1*e2 + c1*h2)
+matR!8=FNfloat_to_fp(a1*c2 + b1*f2 + c1*i2)
+matR!12=FNfloat_to_fp(d1*a2 + e1*d2 + f1*g2)
+matR!16=FNfloat_to_fp(d1*b2 + e1*e2 + f1*h2)
+matR!20=FNfloat_to_fp(d1*c2 + e1*f2 + f1*i2)
+matR!24=FNfloat_to_fp(g1*a2 + h1*d2 + i1*g2)
+matR!28=FNfloat_to_fp(g1*b2 + h1*e2 + i1*h2)
+matR!32=FNfloat_to_fp(g1*c2 + h1*f2 + i1*i2)
 ENDPROC
 :
 DEF PROCtest_make(name$,A%,C%,func)
@@ -174,10 +182,11 @@ PROCtest_make("rotate_z", FNfloat_to_fp(192), matrix, make_rotate_z)
 ENDPROC
 :
 DEF PROCtest_multiply_vector(A%,x,y,z)
-DIM vec 12, res 12
+DIM vec 12, res 12, ver 12
 PROCmake_vec(vec, x, y, z)
+PROCmultiply_vector(A%,vec,ver)
 B%=vec:C%=res:CALL matrix_multiply_vector
-PROCprintf_vec("A:",vec):PROCprintf_vec("B:",res):PRINT
+PROCprintf_vec("A:",vec):PROCprintf_vec("B:",res):PROCprintf_vec("C:",ver):PRINT
 ENDPROC
 :
 DEF PROCtest_multiply_vectors
@@ -253,4 +262,39 @@ PROCtest_multiply_vector(matrix, 0,-1,0)
 PROCtest_multiply_vector(matrix, 0,0,-1)
 PROCtest_multiply_vector(matrix, 0.5,0.5,0.5)
 PROCtest_multiply_vector(matrix, 0,10,-10)
+ENDPROC
+:
+DEF PROCtest_multiply_matrices
+CLS
+DIM matrixA 36, matrixB 36, matrixC 36
+PROCtest_make("identity", 0, matrixA, make_identity)
+PROCmake_matrix(matrixB, 1,2,3,4,5,6,7,8,9)
+PRINT"B=":PROCprintf_matrix(matrixB)
+A%=matrixA:B%=matrixB:C%=matrixC:CALL matrix_multiply
+PROCmake_matrix(matrixA, -1,0,0, 0,-1,0, 0,0,-1)
+PRINT"A=":PROCprintf_matrix(matrixA)
+A%=matrixA:B%=matrixB:C%=matrixC:CALL matrix_multiply
+PRINT"A*B=":PROCprintf_matrix(matrixC)
+PROCmake_matrix(matrixA, 1,1,1, 0,0,0, 0,0,0)
+PRINT"A=":PROCprintf_matrix(matrixA)
+A%=matrixA:B%=matrixB:C%=matrixC:CALL matrix_multiply
+PRINT"A*B=":PROCprintf_matrix(matrixC)
+REPEAT UNTIL GET
+CLS
+PROCmake_matrix(matrixA, 0,0,0, 1,1,1, 0,0,0)
+PRINT"A=":PROCprintf_matrix(matrixA)
+A%=matrixA:B%=matrixB:C%=matrixC:CALL matrix_multiply
+PRINT"A*B=":PROCprintf_matrix(matrixC)
+PROCmake_matrix(matrixA, 0,0,0, 0,0,0, 1,1,1)
+PRINT"A=":PROCprintf_matrix(matrixA)
+A%=matrixA:B%=matrixB:C%=matrixC:CALL matrix_multiply
+PRINT"A*B=":PROCprintf_matrix(matrixC)
+PROCtest_make("rotate_x", FNfloat_to_fp(-45), matrixB, make_rotate_x)
+A%=matrixA:B%=matrixB:C%=matrixC:CALL matrix_multiply
+PRINT"A*B=":PROCprintf_matrix(matrixC)
+A%=matrixB:B%=matrixA:C%=matrixC:CALL matrix_multiply
+PRINT"B*A=":PROCprintf_matrix(matrixC)
+PROCtest_make("rotate_y", FNfloat_to_fp(90), matrixA, make_rotate_y)
+A%=matrixA:B%=matrixB:C%=matrixC:CALL matrix_multiply
+PRINT"A*B=":PROCprintf_matrix(matrixC)
 ENDPROC

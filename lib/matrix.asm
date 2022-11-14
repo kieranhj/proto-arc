@@ -37,6 +37,26 @@
 .equ MATRIX_21, 28
 .equ MATRIX_22, 32
 
+; R2=ptr to 9x9 matrix M
+; Compute:
+; M = [ 1   0   0 ]
+;     [ 0   1   0 ]
+;     [ 0   0   1 ]
+matrix_make_identity:
+    mov r0, #MATHS_CONST_1
+    str r0, [r2, #MATRIX_00]
+    str r0, [r2, #MATRIX_11]
+    str r0, [r2, #MATRIX_22]
+
+    mov r0, #MATHS_CONST_0
+    str r0, [r2, #MATRIX_01]
+    str r0, [r2, #MATRIX_02]
+    str r0, [r2, #MATRIX_10]
+    str r0, [r2, #MATRIX_12]
+    str r0, [r2, #MATRIX_20]
+    str r0, [r2, #MATRIX_21]
+    mov pc, lr
+
 ; R0=rotation clockwise around X axis in brads [0-255]
 ; R2=ptr to 9x9 matrix M
 ; Compute:
