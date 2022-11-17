@@ -13,6 +13,7 @@ make_rotate_x=code+20
 make_rotate_y=code+24
 make_rotate_z=code+28
 make_identity=code+32
+divide=code+36
 :
 PROCtest_multiply_matrices
 REPEAT UNTIL GET

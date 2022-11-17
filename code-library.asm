@@ -20,6 +20,7 @@ b matrix_make_rotate_x      ; +20
 b matrix_make_rotate_y      ; +24
 b matrix_make_rotate_z      ; +28
 b matrix_make_identity      ; +32
+b divide                    ; +36
 
 ; ============================================================================
 ; Code modules.

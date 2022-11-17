@@ -22,6 +22,7 @@ if %ERRORLEVEL% neq 0 (
 
 echo Extracting BASIC files...
 bin\bbcim -e build\basic_files.ssd utest
+bin\bbcim -e build\basic_files.ssd ctest
 
 echo Making !folder...
 set FOLDER="!Test"
@@ -31,7 +32,8 @@ if NOT EXIST %FOLDER% mkdir %FOLDER%
 echo Adding files...
 copy test\*.* "%FOLDER%\*.*"
 copy build\code-library.bin "%FOLDER%\CodeLib,ff8"
-copy build\basic_files.ssd.$.utest "%FOLDER%\!RunImage,ffb"
+copy build\basic_files.ssd.$.ctest "%FOLDER%\!RunImage,ffb"
+copy build\basic_files.ssd.$.utest "%FOLDER%\UnitTest,ffb"
 
 echo Copying !folder...
 set HOSTFS=..\..\Arculator_V2.1_Windows\hostfs
