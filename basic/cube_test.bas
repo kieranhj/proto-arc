@@ -15,7 +15,7 @@ make_identity=code+32
 divide=code+36
 :
 cx=0:cy=0:cz=-160
-ox=0:oy=0:oz=64
+ox=0:oy=0:oz=0
 vdu_scale=4:vp_scale=160*vdu_scale
 vp_centre_x=160*vdu_scale:vp_centre_y=128*vdu_scale
 :
@@ -27,7 +27,7 @@ DIM obj_faces num_faces*4
 DIM rot_matrix 9*4
 DIM rot_verts num_verts*vec_size
 :
-PROCmake_cube(num_verts,obj_verts)
+PROCmake_cube(num_verts,obj_verts,num_faces,obj_faces)
 REPEAT UNTIL GET
 :
 angle=0
@@ -39,9 +39,10 @@ CLS
 A%=FNfloat_to_fp(angle):C%=rot_matrix:CALL make_rotate_y
 PROCprintf_matrix(rot_matrix)
 PROCrotate_verts(num_verts, obj_verts, rot_verts, rot_matrix)
-PROCplot_verts(num_verts, rot_verts)
+:REM PROCplot_verts(num_verts, rot_verts)
+PROCplot_edges(num_verts, rot_verts, num_faces, obj_faces)
 :
-: REM REPEAT UNTIL GET
+:REM REPEAT UNTIL GET
 angle=(angle+1) MOD 256
 :
 UNTIL FALSE
@@ -68,12 +69,19 @@ PRINT "[";FNfp_to_float(mat!12);",";FNfp_to_float(mat!16);",";FNfp_to_float(mat!
 PRINT "[";FNfp_to_float(mat!24);",";FNfp_to_float(mat!28);",";FNfp_to_float(mat!32);"]"
 ENDPROC
 :
-DEF PROCmake_cube(num_verts, vert_buf)
+DEF PROCmake_cube(num_verts, vert_buf, num_faces, face_buf)
 FOR I%=0 TO num_verts-1
 vp=vert_buf+I%*vec_size
 READ x, y, z
 PROCmake_vec(vp, x, y, z)
 PROCprintf_vec(STR$(I%),vp):PRINT
+NEXT
+
+FOR I%=0 TO num_faces-1
+fp=face_buf+I%*4
+READ a, b, c, d
+fp?0=a:fp?1=b:fp?2=c:fp?3=d
+PRINT a, b, c, d
 NEXT
 ENDPROC
 :
@@ -125,5 +133,33 @@ A%=FNfloat_to_fp(y-cy):B%=FNfloat_to_fp(z-cz):dy=FNfp_to_float(USR(divide))
 sx = vp_centre_x + vp_scale * dx
 sy = vp_centre_y + vp_scale * dy
 PLOT 69, sx, sy
+NEXT
+ENDPROC
+
+DEF PROCplot_edges(N%, verts, M%, faces)
+DIM sx N%*4, sy N%*4
+: REM Project all verts
+FOR I%=0 TO N%-1
+vp=verts+I%*vec_size
+:REM PROCprintf_vec(STR$(I%),vp)
+x=FNfp_to_float(vp!0)+ox:y=FNfp_to_float(vp!4)+oy:z=FNfp_to_float(vp!8)+oz
+A%=FNfloat_to_fp(x-cx):B%=FNfloat_to_fp(z-cz):dx=FNfp_to_float(USR(divide))
+A%=FNfloat_to_fp(y-cy):B%=FNfloat_to_fp(z-cz):dy=FNfp_to_float(USR(divide))
+: REM Project to screen
+:REM sx = vp_centre_x + vp_scale * (x-cx) / (z-cz)
+:REM sy = vp_centre_y + vp_scale * (y-cy) / (z-cz)
+sx!(I%*4) = FNfloat_to_fp(vp_centre_x + vp_scale * dx)
+sy!(I%*4) = FNfloat_to_fp(vp_centre_y + vp_scale * dy)
+NEXT
+
+FOR face=0 TO M%-1
+fp=faces+face*4
+FOR edge=0 TO 3
+v1i=fp?edge
+v2i=fp?((edge+1)MOD4)
+
+MOVE FNfp_to_float(sx!(v1i*4)), FNfp_to_float(sy!(v1i*4))
+DRAW FNfp_to_float(sx!(v2i*4)), FNfp_to_float(sy!(v2i*4))
+NEXT
 NEXT
 ENDPROC
