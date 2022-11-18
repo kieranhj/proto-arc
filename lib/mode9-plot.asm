@@ -156,7 +156,8 @@ drawline_into_span_buffer:
 
 	b .1
 
-; R0=num verts, R1=buffer of vertices (x,y) as words, R4=colour
+; R0=num verts, R1=buffer of vertices (x,y) as words, R4=colour#
+; Assume this uses all registers!!!
 plot_polygon_span:
 	str lr, [sp, #-4]!			; push lr on stack
 	str r4, plot_polygon_colour

@@ -6,6 +6,12 @@
 .equ OBJ_MAX_FACES, 6
 .equ OBJ_VERTS_PER_FACE, 4
 
+; TODO: Think about doubling viewport scale and halving world scale
+;       If that makes things easier wrt [8.16] fixed point precision.
+;       E.g. [32,32,32] cube would map to [64,64] pixels.
+;       Therefore camera would be at -80.0 so far plane would be
+;       256-80=176, giving more room to move objects around.
+
 .equ VIEWPORT_SCALE, (Screen_Width/2) * PRECISION_MULTIPLIER
 .equ VIEWPORT_CENTRE_X, (Screen_Width/2) * PRECISION_MULTIPLIER
 .equ VIEWPORT_CENTRE_Y, (Screen_Height/2) * PRECISION_MULTIPLIER
@@ -117,7 +123,7 @@ draw_3d_scene:
     .endif
 
     ; Plot faces as lines.
-    .if 1
+    .if 0
     ldr r12, screen_addr
     adr r11, object_face_indices
     adr r10, projected_verts
@@ -164,6 +170,48 @@ draw_3d_scene:
 
     bl drawline
 
+    add r11, r11, #4
+    subs r9, r9, #1
+    bne .2
+    .endif
+
+    ; Plot faces as polys.
+    .if 1
+    ldr r12, screen_addr
+    adr r11, object_face_indices
+    adr r10, projected_verts
+    ldr r9, object_num_faces
+    mov r4, #0x01               ; colour.
+    .2:
+    adr r8, polygon_buffer
+
+    ldrb r5, [r11, #0]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r0, r1}          ; x_start, y_start
+    stmia r8!, {r0, r1}
+
+    ldrb r5, [r11, #1]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r0, r1}          ; x_start, y_start
+    stmia r8!, {r0, r1}
+
+    ldrb r5, [r11, #2]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r0, r1}          ; x_start, y_start
+    stmia r8!, {r0, r1}
+
+    ldrb r5, [r11, #3]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r0, r1}          ; x_start, y_start
+    stmia r8!, {r0, r1}
+
+    mov r0, #OBJ_VERTS_PER_FACE
+    adr r1, polygon_buffer
+    stmfd sp!, {r4, r9-r12}
+    bl plot_polygon_span
+    ldmfd sp!, {r4, r9-r12}
+
+    add r4, r4, #1
     add r11, r11, #4
     subs r9, r9, #1
     bne .2
@@ -274,3 +322,6 @@ transformed_verts:
 ; TODO: Decide on how to store these, maybe packed or separate array?
 projected_verts:
     .skip OBJ_MAX_VERTS * 2 * 4
+
+polygon_buffer:
+    .skip OBJ_VERTS_PER_FACE * 2 * 4

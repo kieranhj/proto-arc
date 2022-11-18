@@ -107,6 +107,7 @@ main:
 	bl MakeReciprocal
 	.endif
 	; TODO: bl MakeSinus
+	bl initialise_span_buffer
 
 	.if _ENABLE_ROCKET
 	bl rocket_init
