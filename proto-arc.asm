@@ -177,6 +177,8 @@ main_loop:
 	; DO STUFF HERE!
 	bl get_next_screen_for_writing
 	ldr r8, screen_addr
+
+	SET_BORDER 0x00ff00	; green
 	bl screen_cls
 
 	SET_BORDER 0x0000ff	; red

@@ -10,9 +10,34 @@
 .equ VIEWPORT_CENTRE_X, (Screen_Width/2) * PRECISION_MULTIPLIER
 .equ VIEWPORT_CENTRE_Y, (Screen_Height/2) * PRECISION_MULTIPLIER
 
+; ============================================================================
+; Scene data.
+; ============================================================================
+
+camera_pos:
+    VECTOR3 0.0, 0.0, -160.0
+
+; Note camera is fixed to view down +z axis.
+; TODO: Camera rotation/direction/look at?
+
+object_pos:
+    VECTOR3 0.0, 0.0, 64.0
+
+object_rot:
+    VECTOR3 0.0, 0.0, 0.0
+
+object_transform:
+    MATRIX33_IDENTITY
+
+; ============================================================================
+; ============================================================================
+
 init_3d_scene:
     ; TODO: Anything here?
     mov pc, lr
+
+; ============================================================================
+; ============================================================================
 
 update_3d_scene:
     str lr, [sp, #-4]!
@@ -54,6 +79,9 @@ update_3d_scene:
     str r0, object_rot
     ldr pc, [sp], #4
 
+; ============================================================================
+; ============================================================================
+
 draw_3d_scene:
     str lr, [sp, #-4]!
 
@@ -65,27 +93,81 @@ draw_3d_scene:
     ; R2=ptr to world pos vector
     bl project_to_screen
     ; R0=screen_x, R1=screen_y [16.16]
+    mov r0, r0, asr #16         ; [16.0]
+    mov r1, r1, asr #16         ; [16.0]
     stmia r12!, {r0, r1}
     add r2, r2, #VECTOR3_SIZE
     subs r11, r11, #1
     bne .1
 
-    ; Plot verices as pixels.
+    ; Plot vertices as pixels.
+    .if 0
     ldr r12, screen_addr
     adr r3, projected_verts
     ldr r9, object_num_verts
     .2:
     ldmia r3!, {r0, r1}
-    mov r0, r0, asr #16
-    mov r1, r1, asr #16
 
     ; TODO: Clipping.
 
     mov r4, #0x07               ; colour.
     bl plot_pixel
-
     subs r9, r9, #1
     bne .2
+    .endif
+
+    ; Plot faces as lines.
+    .if 1
+    ldr r12, screen_addr
+    adr r11, object_face_indices
+    adr r10, projected_verts
+    ldr r9, object_num_faces
+    mov r4, #0x07               ; colour.
+    .2:
+    ldrb r5, [r11, #0]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r0, r1}          ; x_start, y_start
+
+    ldrb r5, [r11, #1]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r2, r3}          ; x_end, y_end
+
+    bl drawline
+
+    ldrb r5, [r11, #1]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r0, r1}          ; x_start, y_start
+
+    ldrb r5, [r11, #2]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r2, r3}          ; x_end, y_end
+
+    bl drawline
+
+    ldrb r5, [r11, #2]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r0, r1}          ; x_start, y_start
+
+    ldrb r5, [r11, #3]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r2, r3}          ; x_end, y_end
+
+    bl drawline
+
+    ldrb r5, [r11, #3]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r0, r1}          ; x_start, y_start
+
+    ldrb r5, [r11, #0]
+    add r7, r10, r5, lsl #3     ; projected_verts + index*8
+    ldmia r7, {r2, r3}          ; x_end, y_end
+
+    bl drawline
+
+    add r11, r11, #4
+    subs r9, r9, #1
+    bne .2
+    .endif
 
     ldr pc, [sp], #4
 
@@ -124,32 +206,13 @@ project_to_screen:
     bl divide                   ; (y-cy)/(z-cz)
                                 ; [0.16]
     mov r7, #VIEWPORT_SCALE>>MULTIPLICATION_SHIFT     ; [16.8]
-    mul r1, r0, r2              ; [8.24]        ; overflow?
+    mul r1, r0, r7              ; [8.24]        ; overflow?
     mov r1, r1, asr #8          ; [8.16]
     mov r8, #VIEWPORT_CENTRE_Y  ; [16.16]
     add r1, r1, r8              ; [16.16]
 
     mov r0, r6
     ldr pc, [sp], #4
-
-; ============================================================================
-; Scene data.
-; ============================================================================
-
-camera_pos:
-    VECTOR3 0.0, 0.0, -160.0
-
-; Note camera is fixed to view down +z axis.
-; TODO: Camera rotation/direction/look at?
-
-object_pos:
-    VECTOR3 0.0, 0.0, 64.0
-
-object_rot:
-    VECTOR3 0.0, 0.0, 0.0
-
-object_transform:
-    MATRIX33_IDENTITY
 
 ; ============================================================================
 ; Object data: CUBE
