@@ -3,6 +3,7 @@
 ; ============================================================================
 
 .equ _DEBUG, 1
+.equ _DEBUG_RASTERS, (_DEBUG && 1)
 .equ _ENABLE_MUSIC, 0
 .equ _ENABLE_ROCKET, 0
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
@@ -19,6 +20,13 @@
 .equ Mode_Bytes, Screen_Stride*Mode_Height
 
 .include "lib/swis.h.asm"
+
+.macro SET_BORDER rgb
+	.if _DEBUG_RASTERS
+	mov r4, #\rgb
+	bl palette_set_border
+	.endif
+.endm
 
 .org 0x8000
 
@@ -38,9 +46,19 @@ stack_base:
 ; ============================================================================
 
 main:
-	MOV r0,#22	;Set MODE
+	SWI OS_WriteI + 22		; Set base MODE
+	SWI OS_WriteI + Screen_Mode
+
+	SWI OS_WriteI + 23		; Disable cursor
+	SWI OS_WriteI + 1
+	MOV r0,#0
 	SWI OS_WriteC
-	MOV r0,#Screen_Mode
+	SWI OS_WriteC
+	SWI OS_WriteC
+	SWI OS_WriteC
+	SWI OS_WriteC
+	SWI OS_WriteC
+	SWI OS_WriteC
 	SWI OS_WriteC
 
 	; Set screen size for number of buffers
@@ -55,20 +73,6 @@ main:
 	CMP r1, #Mode_Bytes * Screen_Banks
 	ADRCC r0, error_noscreenmem
 	SWICC OS_GenerateError
-
-	MOV r0,#23	;Disable cursor
-	SWI OS_WriteC
-	MOV r0,#1
-	SWI OS_WriteC
-	MOV r0,#0
-	SWI OS_WriteC
-	SWI OS_WriteC
-	SWI OS_WriteC
-	SWI OS_WriteC
-	SWI OS_WriteC
-	SWI OS_WriteC
-	SWI OS_WriteC
-	SWI OS_WriteC
 
 	; LOAD STUFF HERE!
 
@@ -175,9 +179,13 @@ main_loop:
 	ldr r8, screen_addr
 	bl screen_cls
 
+	SET_BORDER 0x0000ff	; red
 	bl update_3d_scene
+
+	SET_BORDER 0xff0000	; blue
 	bl draw_3d_scene
 
+	SET_BORDER 0x000000	; black
 	bl show_screen_at_vsync
 
 	; exit if Escape is pressed
