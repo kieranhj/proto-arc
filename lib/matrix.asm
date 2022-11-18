@@ -37,6 +37,24 @@
 .equ MATRIX_21, 28
 .equ MATRIX_22, 32
 
+.equ MATRIX33_SIZE, 3*3*4
+
+.macro MATRIX33 a, b, c, d, e, f, g, h, i
+    FLOAT_TO_FP \a
+    FLOAT_TO_FP \b
+    FLOAT_TO_FP \c
+    FLOAT_TO_FP \d
+    FLOAT_TO_FP \e
+    FLOAT_TO_FP \f
+    FLOAT_TO_FP \g
+    FLOAT_TO_FP \h
+    FLOAT_TO_FP \i
+.endm
+
+.macro MATRIX33_IDENTITY
+    MATRIX33 1.0, 0.0, 0.0,  0.0, 1.0, 0.0,  0.0, 0.0, 1.0 
+.endm
+
 ; R2=ptr to 9x9 matrix M
 ; Compute:
 ; M = [ 1   0   0 ]

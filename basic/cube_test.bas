@@ -15,9 +15,13 @@ make_identity=code+32
 divide=code+36
 :
 cx=0:cy=0:cz=-160
-ox=0:oy=0:oz=0
-vdu_scale=4:vp_scale=160*vdu_scale
-vp_centre_x=160*vdu_scale:vp_centre_y=128*vdu_scale
+ox=0:oy=0:oz=64
+: REM vp_dist (D)=160 and vp_height (h)=160.
+: REM So h/D=1 FOV=2*atan(h/D)=90 degrees
+: REM Say FOV=60 h/D=0.57735 D=160/0.57735~=277.128
+vp_scale=160
+vp_centre_x=160:vp_centre_y=128
+vdu_scale=4:
 :
 vec_size=12
 num_verts=8
@@ -132,7 +136,7 @@ A%=FNfloat_to_fp(y-cy):B%=FNfloat_to_fp(z-cz):dy=FNfp_to_float(USR(divide))
 :REM sy = vp_centre_y + vp_scale * (y-cy) / (z-cz)
 sx = vp_centre_x + vp_scale * dx
 sy = vp_centre_y + vp_scale * dy
-PLOT 69, sx, sy
+PLOT 69, sx*vdu_scale, sy*vdu_scale
 NEXT
 ENDPROC
 
@@ -158,8 +162,8 @@ FOR edge=0 TO 3
 v1i=fp?edge
 v2i=fp?((edge+1)MOD4)
 
-MOVE FNfp_to_float(sx!(v1i*4)), FNfp_to_float(sy!(v1i*4))
-DRAW FNfp_to_float(sx!(v2i*4)), FNfp_to_float(sy!(v2i*4))
+MOVE FNfp_to_float(sx!(v1i*4))*vdu_scale, FNfp_to_float(sy!(v1i*4)*vdu_scale)
+DRAW FNfp_to_float(sx!(v2i*4))*vdu_scale, FNfp_to_float(sy!(v2i*4)*vdu_scale)
 NEXT
 NEXT
 ENDPROC

@@ -4,13 +4,14 @@
 
 .equ _DEBUG, 1
 .equ _ENABLE_MUSIC, 0
+.equ _ENABLE_ROCKET, 0
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 1
 
-.equ Screen_Banks, 3
+.equ Screen_Banks, 2
 .equ Screen_Mode, 9
 .equ Screen_Width, 320
-.equ Screen_Height, 240
+.equ Screen_Height, 256
 .equ Mode_Height, 256
 .equ Screen_PixelsPerByte, 2
 .equ Screen_Stride, Screen_Width/Screen_PixelsPerByte
@@ -97,6 +98,16 @@ main:
 	cmp r1, #Screen_Banks
 	ble .1
 
+	; EARLY INITIALISATION HERE! (Tables etc.)
+	.if 0	; TODO: _ENABLE_RECIPROCAL_TABLE
+	bl MakeReciprocal
+	.endif
+	; TODO: bl MakeSinus
+
+	.if _ENABLE_ROCKET
+	bl rocket_init
+	.endif
+
 	; Start with bank 1
 	mov r1, #1
 	str r1, scr_bank
@@ -114,12 +125,19 @@ main:
 	swi OS_AddToVector
 
 	; LATE INITALISATION HERE!
-	adr r2, blue_palette
-	bl palette_set_block
+	;adr r2, blue_palette
+	;bl palette_set_block
+
+	bl init_3d_scene
 
 	; Sync tracker.
-	bl rocket_init
-	bl rocket_start
+	.if _ENABLE_ROCKET
+	bl rocket_start		; handles music.
+	.else
+	.IF _ENABLE_MUSIC
+	swi QTM_Start
+	.endif
+	.endif
 
 	; Enable Vsync event
 	mov r0, #OSByte_EventEnable
@@ -143,7 +161,9 @@ main_loop:
 	str r0, vsync_delta
 
 	; R0 = vsync delta since last frame.
+	.if _ENABLE_ROCKET
 	bl rocket_update
+	.endif
 
 	; show debug
 	.if _DEBUG
@@ -154,7 +174,10 @@ main_loop:
 	bl get_next_screen_for_writing
 	ldr r8, screen_addr
 	bl screen_cls
-	bl stacked_plot_fx
+
+	bl update_3d_scene
+	bl draw_3d_scene
+
 	bl show_screen_at_vsync
 
 	; exit if Escape is pressed
@@ -201,7 +224,7 @@ debug_write_vsync_count:
 	adr r0, debug_string
 	swi OS_WriteO
 .else
-	ldr r0, vsync_delta	; rocket_sync_time
+	ldr r0, vsync_count		; vsync_delta	; rocket_sync_time
 	adr r1, debug_string
 	mov r2, #8
 	swi OS_ConvertHex4
@@ -224,9 +247,6 @@ get_screen_addr:
 	
 screen_addr_input:
 	.long VD_ScreenStart, -1
-
-screen_addr:
-	.long 0					; ptr to the current VIDC screen bank being written to.
 
 exit:	
 	; wait for vsync (any pending buffers)
@@ -335,28 +355,6 @@ event_handler:
 	LDMIA sp!, {r2-r12}
 	LDMIA sp!, {r0-r1, pc}
 
-; TODO: rename these to be clearer.
-scr_bank:
-	.long 0				; current VIDC screen bank being written to.
-
-palette_block_addr:
-	.long 0				; (optional) ptr to a block of palette data for the screen bank being written to.
-
-vsync_count:
-	.long 0				; current vsync count from start of exe.
-
-last_vsync:
-	.long 0				; vsync count at start of previous frame.
-
-vsync_delta:
-	.long 0
-
-buffer_pending:
-	.long 0				; screen bank number to display at vsync.
-
-palette_pending:
-	.long 0				; (optional) ptr to a block of palette data to set at vsync.
-
 error_handler:
 	STMDB sp!, {r0-r2, lr}
 	MOV r0, #OSByte_EventDisable
@@ -401,191 +399,47 @@ get_next_screen_for_writing:
 	b get_screen_addr
 
 ; ============================================================================
+; Global vars.
+; ============================================================================
+
+; TODO: rename these to be clearer.
+scr_bank:
+	.long 0				; current VIDC screen bank being written to.
+
+palette_block_addr:
+	.long 0				; (optional) ptr to a block of palette data for the screen bank being written to.
+
+vsync_count:
+	.long 0				; current vsync count from start of exe.
+
+last_vsync:
+	.long 0				; vsync count at start of previous frame.
+
+vsync_delta:
+	.long 0
+
+buffer_pending:
+	.long 0				; screen bank number to display at vsync.
+
+palette_pending:
+	.long 0				; (optional) ptr to a block of palette data to set at vsync.
+
+screen_addr:
+	.long 0				; ptr to the current VIDC screen bank being written to.
+
+; ============================================================================
 ; Additional code modules
 ; ============================================================================
 
-.include "lib/rocket.asm"
+.include "lib/maths.asm"
+.include "lib/3d-scene.asm"
+.include "lib/mode9-screen.asm"
+.include "lib/mode9-plot.asm"
 .include "lib/mode9-palette.asm"
 
-.macro PIXEL_LOOKUP_TO reg
-	; r0 = XXvv00uu
-	add r3, r0, r9				; XXvv00uu + YYbb00aa
-	and r0, r3, #0x000000ff
-	and r1, r3, #0x00ff0000
-	add r0, r0, r11
-	ldrb \reg, [r0, r1, lsr #8]
-	; 8c
-.endm
-
-.equ Stacked_Plot_Z_Start, Screen_Height-4
-.equ Stacked_Plot_Z_Step, 8
-.equ Stacked_Plot_X_Step, 8
-
-stacked_plot_fx:
-	str lr, [sp, #-4]!
-
-; R0=startx, R1=starty, R2=endx, R3=endy, R4=colour, R12=screen_addr
-	ldr r12, screen_addr
-
-	; Reset Y-buffer
-	bl y_buffer_reset
-
-	; Draw lines from bottom to top (Z)
-	mov r5, #Stacked_Plot_Z_Start
-	.1:
-	bl stacked_plot_line
-	subs r5, r5, #Stacked_Plot_Z_Step
-	bpl .1
-
-	ldr pc, [sp], #4
-
-stacked_plot_line:
-	stmfd sp!, {r5, lr}
-
-	; Plot line from left to right
-	mov r6, #0
-
-	; Get y = fn(x, z)
-	; r5=z, r6=x, returns r7=y
-	; must preserve r0,r1
-	bl stacked_fn
-	mov r0, r6
-	mov r1, r7
-
-	.1:
-	add r6, r6, #Stacked_Plot_X_Step
-	cmp r6, #Screen_Width
-	bge .2
-
-	; Get y' = fn(x', z)
-	bl stacked_fn
-	mov r2, r6
-	mov r3, r7
-
-	stmfd sp!, {r5,r6}
-
-	mov r4, #0x0f
-
-	; Draw line from (x,y) to (x',y')
-	bl drawline
-	; Now r0=x', r1=y'
-
-	ldmfd sp!, {r5,r6}
-	b .1
-	.2:
-
-	ldmfd sp!, {r5, pc}
-
-; r5=z, r6=x, returns r7=y = fn(x, z)
-; must preserve r0,r1
-stacked_fn:
-	; 
-	adr r9, sine_table
-
-	ldr r7, rocket_sync_time	; t
-	add r7, r7, r5				; z+t
-	and r7, r7, #255
-	ldr r10, [r9, r7, lsl #2]	; sin(z+t)
-	mov r10, r10, asr #4		; 1.12
-
-	add r8, r6, r7
-	and r8, r8, #255			; table size
-	ldr r7, [r9, r8, lsl #2]	; sin(x)
-	mov r7, r7, asr #4			; 1.12
-
-	mul r8, r10, r7				; 1.8 x 1.8 = 1.24
-	mov r7, r8, asr #19			; max +-32 pixels
-
-	; Add z to y to make the stack.
-	add r7, r7, r5
-	mov pc, lr
-
-y_buffer_reset:
-	mov r0, #0
-	mov r1, #Screen_Height
-	adr r2, y_buffer
-	add r0, r2, #Screen_Width*4
-	.1:
-	str r1, [r2], #4
-	cmp r2, r0
-	blt .1
-	mov pc, lr
-
-
-; R0=startx, R1=starty, R2=endx, R3=endy, R4=colour, R12=screen_addr
-; Trashes r5, r6, r7, r8, r9, r10, r11
-drawline:
-	str lr, [sp, #-4]!			; push lr on stack
-
-	subs r5, r2, r0				; r5 = dx = endx - startx
-	rsblt r5, r5, #0			; r5 = abs(dx)
-
-	cmp r0,r2					; startx < endx?
-	movlt r7, #1				; r7 = sx = 1
-	movge r7, #-1				; r7 = sx = -1
-
-	subs r6, r3, r1				; r6 = dy = endy - starty
-	rsblt r6, r6, #0			; r6 = abs(dy)
-	rsb r6, r6, #0				; r6 = -abs(dy)
-
-	cmp r1, r3					; starty < endy?
-	movlt r8, #1				; r8 = sy = 1
-	movge r8, #-1				; r8 = sy = -1
-
-	add r9, r5, r6				; r9 = dx + dy = err
-
-.1:
-	cmp r0, r2					; x0 == x1?
-	cmpeq r1, r3				; y0 == y1?
-	ldreq pc, [sp], #4			; rts
-
-	; there will be faster line plot algorithms by keeping track of
-	; screen pointer then flushing a byte or word when moving to next row
-	bl plot_pixel
-
-	mov r10, r9, lsl #1			; r10 = err * 2
-	cmp r10, r6					; e2 >= dy?
-	addge r9, r9, r6			; err += dy
-	addge r0, r0, r7			; x0 += sx
-
-	cmp r10, r5					; e2 <= dx?
-	addle r9, r9, r5			; err += dx
-	addle r1, r1, r8			; y0 += sy
-
-	b .1
-
-; R0=x, R1=y, R4=colour, R12=screen_addr, trashes r10, r11
-plot_pixel:
-	cmp r1, #Screen_Height
-	movge pc, lr
-	cmp r1, #0
-	movmi pc, lr
-
-	adr r10, y_buffer
-	ldr r11, [r10, r0, lsl #2]	; y_buffer[x]
-	cmp r1, r11
-	movge pc, lr
-	str r1, [r10, r0, lsl #2]	; y_buffer[x] = y
-
-	; ptr = screen_addr + starty * screen_stride + startx DIV 2
-	add r10, r12, r1, lsl #7	; r10 = screen_addr + starty * 128
-	add r10, r10, r1, lsl #5	; r10 += starty * 32 = starty * 160
-	add r10, r10, r0, lsr #1	; r10 += startx DIV 2
-
-	ldrb r11, [r10]				; load screen byte
-
-	tst r0, #1					; odd or even pixel?
-	andeq r11, r11, #0xF0		; mask out left hand pixel
-	orreq r11, r11, r4			; mask in colour as left hand pixel
-
-	andne r11, r11, #0x0F		; mask out right hand pixel
-	orrne r11, r11, r4, lsl #4	; mask in colour as right hand pixel
-
-	strb r11, [r10]				; store screen byte
-	mov pc, lr
-
-.include "lib/mode9-screen.asm"
-.include "lib/maths.asm"
+.if _ENABLE_ROCKET
+.include "lib/rocket.asm"
+.endif
 
 ; ============================================================================
 ; Data Segment
@@ -616,8 +470,8 @@ blue_palette:
 	.long 0x00FF0000
 
 .p2align 6
-sine_table:
-	.incbin "data\sine.bin"
+sinus_table:
+.incbin "data/sine_8192.bin"
 
 ; ============================================================================
 ; BSS Segment
@@ -632,6 +486,6 @@ palette_osword_block:
     ; blue
     ; (pad)
 
-.p2align 6
-y_buffer:
-	.skip Screen_Width
+.if _ENABLE_RECIPROCAL_TABLE
+.skip 65336*4
+.endif

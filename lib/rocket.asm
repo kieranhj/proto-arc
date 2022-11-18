@@ -335,6 +335,7 @@ track_stniccc_fade_to_white:
 track_stniccc_fade_to_black:
     .incbin "data/rocket/stniccc_fade_to_black.track"
 
+; TODO: Use shared divide function.
 divisor_table:
     .long 0
     .set div, 1

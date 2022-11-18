@@ -2,6 +2,17 @@
 ; Vector routines.
 ; ============================================================================
 
+.equ VECTOR3_SIZE, 3*4
+
+.macro VECTOR3 x, y, z
+    FLOAT_TO_FP \x
+    FLOAT_TO_FP \y
+    FLOAT_TO_FP \z
+.endm
+
+; TODO: make_vector?
+; TODO: vector_add?
+
 ; Dot product.
 ; Parameters:
 ;  R1=ptr to vector A.
@@ -50,9 +61,3 @@ debug_write_vector:
     bl debug_write_fp
     ldmfd sp!, {r0, r3, pc}
 .endif
-
-.macro VECTOR3 x, y, z
-    FLOAT_TO_FP \x
-    FLOAT_TO_FP \y
-    FLOAT_TO_FP \z
-.endm

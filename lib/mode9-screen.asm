@@ -29,6 +29,7 @@ screen_cls:
 	blt .1
 	mov pc, lr
 
+.if 0
 screen_dup_lines:
 	ldr r12, screen_addr
 	add r9, r12, #Screen_Bytes
@@ -43,3 +44,4 @@ screen_dup_lines:
 	cmp r12, r9
 	blt .1
 	mov pc, lr
+.endif
