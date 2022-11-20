@@ -76,7 +76,19 @@ update_3d_scene:
     subs r10, r10, #1
     bne .1
 
-    ; TODO: Transform normals.
+    ; Transform normals.
+    adr r0, object_transform
+    adr r1, object_face_normals
+    adr r2, transformed_normals
+    ldr r10, object_num_faces
+    .2:
+    ; R0=ptr to matrix, R1=vector A, R2=vector B
+    bl matrix_multiply_vector
+    ; TODO: Array version of this function.
+    add r1, r1, #VECTOR3_SIZE
+    add r2, r2, #VECTOR3_SIZE
+    subs r10, r10, #1
+    bne .2
 
     ; Update any scene vars, camera, object position etc. (Rocket?)
     ldr r0, object_rot
@@ -127,10 +139,25 @@ draw_3d_scene:
     ldr r12, screen_addr
     adr r11, object_face_indices
     adr r10, projected_verts
+    adr r6, transformed_normals
     ldr r9, object_num_faces
     mov r4, #0x07               ; colour.
     .2:
-    ldrb r5, [r11, #0]
+    ldrb r5, [r11, #0]          ; vertex0 of polygon.
+
+    adr r1, transformed_verts
+    add r1, r1, r5, lsl #3
+    add r1, r1, r5, lsl #2      ; transformed_verts + index*12
+    mov r2, r6                  ; face_normal
+
+    stmfd sp!, {r4, r6}
+    bl backface_cull_test       ; (vertex0 - camera_pos).face_normal
+    ldmfd sp!, {r4, r6}
+
+    cmp r0, #0
+    bpl .3                      ; normal facing away from the view direction.
+
+    ldrb r5, [r11, #0]          ; vertex0 of polygon.
     add r7, r10, r5, lsl #3     ; projected_verts + index*8
     ldmia r7, {r0, r1}          ; x_start, y_start
 
@@ -170,6 +197,8 @@ draw_3d_scene:
 
     bl drawline
 
+    .3:
+    add r6, r6, #VECTOR3_SIZE
     add r11, r11, #4
     subs r9, r9, #1
     bne .2
@@ -180,9 +209,24 @@ draw_3d_scene:
     ldr r12, screen_addr
     adr r11, object_face_indices
     adr r10, projected_verts
+    adr r6, transformed_normals
     ldr r9, object_num_faces
     mov r4, #0x01               ; colour.
     .2:
+    ldrb r5, [r11, #0]          ; vertex0 of polygon.
+    
+    adr r1, transformed_verts
+    add r1, r1, r5, lsl #3
+    add r1, r1, r5, lsl #2      ; transformed_verts + index*12
+    mov r2, r6                  ; face_normal
+
+    stmfd sp!, {r4, r6}
+    bl backface_cull_test       ; (vertex0 - camera_pos).face_normal
+    ldmfd sp!, {r4, r6}
+
+    cmp r0, #0                  
+    bpl .3                      ; normal facing away from the view direction.
+
     adr r8, polygon_buffer
 
     ldrb r5, [r11, #0]
@@ -207,16 +251,38 @@ draw_3d_scene:
 
     mov r0, #OBJ_VERTS_PER_FACE
     adr r1, polygon_buffer
-    stmfd sp!, {r4, r9-r12}
+    stmfd sp!, {r4, r6, r9-r12}
     bl plot_polygon_span
-    ldmfd sp!, {r4, r9-r12}
+    ldmfd sp!, {r4, r6, r9-r12}
 
+    .3:
+    add r6, r6, #VECTOR3_SIZE
     add r4, r4, #1
     add r11, r11, #4
     subs r9, r9, #1
     bne .2
     .endif
 
+    ldr pc, [sp], #4
+
+; Parameters:
+;  R1=ptr to vector (vertex in world space) .
+;  R2=ptr to face normal
+; Return:
+;  R0=dot product of (v0-cp).n
+; Trashes: r3-r8
+backface_cull_test:
+    str lr, [sp, #-4]!
+
+    ldmia r1, {r3-r5}
+    ldr r6, camera_pos+0
+    ldr r7, camera_pos+4
+    ldr r8, camera_pos+8
+    sub r3, r3, r6
+    sub r4, r4, r7
+    sub r5, r5, r8          ; vertex - camera_pos
+
+    bl dot_product_loaded
     ldr pc, [sp], #4
 
 ; R2=ptr to vector (position in world space).
@@ -318,6 +384,9 @@ object_face_normals:
 
 transformed_verts:
     .skip OBJ_MAX_VERTS * VECTOR3_SIZE
+
+transformed_normals:
+    .skip OBJ_MAX_FACES * VECTOR3_SIZE
 
 ; TODO: Decide on how to store these, maybe packed or separate array?
 projected_verts:

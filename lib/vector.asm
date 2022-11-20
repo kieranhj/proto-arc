@@ -32,6 +32,7 @@
 ;
 dot_product:
     ldmia r1, {r3-r5}                   ; [s10.10]
+dot_product_loaded:
     ldmia r2, {r6-r8}                   ; [s10.10]
 
     mov r3, r3, asr #MULTIPLICATION_SHIFT    ; [s10.5]

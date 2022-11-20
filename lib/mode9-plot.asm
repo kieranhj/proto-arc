@@ -292,7 +292,7 @@ plot_polygon_colour:
 ; R0=startx, R1=starty, R2=endx, R3=endy, R4=colour, R12=screen_addr
 ; Trashes r5, r6, r7, r8, r9, r10, r11
 drawline:
-	stmfd sp!, {r9-r11, lr}
+	stmfd sp!, {r6, r9-r11, lr}
 
 	subs r5, r2, r0				; r5 = dx = endx - startx
 	rsblt r5, r5, #0			; r5 = abs(dx)
@@ -314,7 +314,7 @@ drawline:
 .1:
 	cmp r0, r2					; x0 == x1?
 	cmpeq r1, r3				; y0 == y1?
-	ldmeqfd sp!, {r9-r11, pc}	; rts
+	ldmeqfd sp!, {r6, r9-r11, pc}	; rts
 
 	; there will be faster line plot algorithms by keeping track of
 	; screen pointer then flushing a byte or word when moving to next row
