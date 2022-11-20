@@ -35,12 +35,22 @@ object_rot:
 object_transform:
     MATRIX33_IDENTITY
 
+temp_matrix_1:
+    MATRIX33_IDENTITY
+
+temp_matrix_2:
+    MATRIX33_IDENTITY
+
 ; ============================================================================
 ; ============================================================================
 
 init_3d_scene:
-    ; TODO: Anything here?
-    mov pc, lr
+    str lr, [sp, #-4]!
+
+    adr r2, object_transform
+    bl matrix_make_identity
+
+    ldr pc, [sp], #4
 
 ; ============================================================================
 ; ============================================================================
@@ -48,9 +58,42 @@ init_3d_scene:
 update_3d_scene:
     str lr, [sp, #-4]!
     ; Create rotation matrix as object transform.
+    .if 1
+    adr r2, temp_matrix_1
+    ldr r0, object_rot + 0
+    bl matrix_make_rotate_x
+
     adr r2, object_transform
-    ldr r0, object_rot              ; TODO: Properly!
+    ldr r0, object_rot + 4
     bl matrix_make_rotate_y
+
+    adr r0, temp_matrix_1
+    adr r1, object_transform
+    adr r2, temp_matrix_2
+    bl matrix_multiply
+
+    adr r2, temp_matrix_1
+    ldr r0, object_rot + 8
+    bl matrix_make_rotate_z
+
+    adr r0, temp_matrix_2
+    adr r1, temp_matrix_1
+    adr r2, object_transform
+    bl matrix_multiply
+    .else
+    ; Updating the rotation matrix in this way resulting in minification.
+    ; Presume repeated precision loss during mutiply causing this.
+    ; Would need the rotation only matrix multiplication routine here.
+    adr r0, object_transform
+    adr r1, delta_transform
+    adr r2, temp_matrix
+    bl matrix_multiply
+
+    adr r0, object_transform
+    adr r2, temp_matrix
+    ldmia r2!, {r3-r11}
+    stmia r0!, {r3-r11}
+    .endif
 
     adr r11, object_pos
 
@@ -91,10 +134,21 @@ update_3d_scene:
     bne .2
 
     ; Update any scene vars, camera, object position etc. (Rocket?)
-    ldr r0, object_rot
+    ldr r0, object_rot+0
+    add r0, r0, #MATHS_CONST_HALF
+    bic r0, r0, #0xff000000         ; brads
+    str r0, object_rot+0
+
+    ldr r0, object_rot+4
     add r0, r0, #MATHS_CONST_1
     bic r0, r0, #0xff000000         ; brads
-    str r0, object_rot
+    str r0, object_rot+4
+
+    ldr r0, object_rot+8
+    add r0, r0, #MATHS_CONST_QUARTER
+    bic r0, r0, #0xff000000         ; brads
+    str r0, object_rot+8
+
     ldr pc, [sp], #4
 
 ; ============================================================================
