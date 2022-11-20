@@ -41,6 +41,12 @@ temp_matrix_1:
 temp_matrix_2:
     MATRIX33_IDENTITY
 
+temp_vector_1:
+    VECTOR3_ZERO
+
+temp_vector_2:
+    VECTOR3_ZERO
+
 ; ============================================================================
 ; ============================================================================
 
@@ -195,7 +201,6 @@ draw_3d_scene:
     adr r10, projected_verts
     adr r6, transformed_normals
     ldr r9, object_num_faces
-    mov r4, #0x07               ; colour.
     .2:
     ldrb r5, [r11, #0]          ; vertex0 of polygon.
 
@@ -204,12 +209,12 @@ draw_3d_scene:
     add r1, r1, r5, lsl #2      ; transformed_verts + index*12
     mov r2, r6                  ; face_normal
 
-    stmfd sp!, {r4, r6}
     bl backface_cull_test       ; (vertex0 - camera_pos).face_normal
-    ldmfd sp!, {r4, r6}
 
     cmp r0, #0
     bpl .3                      ; normal facing away from the view direction.
+
+    mov r4, #0x07               ; colour.
 
     ldrb r5, [r11, #0]          ; vertex0 of polygon.
     add r7, r10, r5, lsl #3     ; projected_verts + index*8
@@ -274,9 +279,7 @@ draw_3d_scene:
     add r1, r1, r5, lsl #2      ; transformed_verts + index*12
     mov r2, r6                  ; face_normal
 
-    stmfd sp!, {r4, r6}
     bl backface_cull_test       ; (vertex0 - camera_pos).face_normal
-    ldmfd sp!, {r4, r6}
 
     cmp r0, #0                  
     bpl .3                      ; normal facing away from the view direction.
@@ -288,6 +291,7 @@ draw_3d_scene:
     cmp r4, #0x10
     movge r4, #0x0f             ; clamp to [0-15]
 
+    ; Make the polygon buffer from face indices.
     adr r8, polygon_buffer
 
     ldrb r5, [r11, #0]
@@ -312,13 +316,12 @@ draw_3d_scene:
 
     mov r0, #OBJ_VERTS_PER_FACE
     adr r1, polygon_buffer
-    stmfd sp!, {r4, r6, r9-r12}
+    stmfd sp!, {r6, r9-r12}
     bl plot_polygon_span
-    ldmfd sp!, {r4, r6, r9-r12}
+    ldmfd sp!, {r6, r9-r12}
 
     .3:
     add r6, r6, #VECTOR3_SIZE
-    add r4, r4, #1
     add r11, r11, #4
     subs r9, r9, #1
     bne .2
@@ -328,13 +331,13 @@ draw_3d_scene:
 
 ; Backfacing culling test.
 ; Parameters:
-;  R1=ptr to vector (vertex in world space).
-;  R2=ptr to face normal
+;  R1=ptr to vertex in world space
+;  R2=ptr to face normal vector
 ; Return:
 ;  R0=dot product of (v0-cp).n
 ; Trashes: r3-r8
 backface_cull_test:
-    str lr, [sp, #-4]!
+    stmfd sp!, {r6, lr}
 
     ldmia r1, {r3-r5}
     ldr r6, camera_pos+0
@@ -344,12 +347,15 @@ backface_cull_test:
     sub r4, r4, r7
     sub r5, r5, r8          ; vertex - camera_pos
 
-    bl vector_dot_product_loaded
-    ldr pc, [sp], #4
+    ; vector A already in (r3, r4, r5)
+    ; vector B = face normal
+    bl vector_dot_product_load_B
+    ldmfd sp!, {r6, pc}
+
 
 ; Project world position to screen coordinates.
 ;
-; R2=ptr to vector (position in world space).
+; R2=ptr to position in world space vector
 ; Returns:
 ;  R0=screen x
 ;  R1=screen y
@@ -391,6 +397,7 @@ project_to_screen:
 
     mov r0, r6
     ldr pc, [sp], #4
+
 
 ; ============================================================================
 ; Object data: CUBE
