@@ -4,7 +4,7 @@ err_delta=1/256
 :
 DIM code 65536
 OSCLI "LOAD <Test$Dir>.CodeLib "+STR$~(code)
-dot_product=code+0
+vector_dot_product=code+0
 matrix_multiply_vector=code+4
 matrix_multiply=code+8
 sine=code+12
@@ -23,10 +23,10 @@ PROCtest_make_matrices
 REPEAT UNTIL GET
 PROCtest_sine
 REPEAT UNTIL GET
-PROCtest_dot_product
+PROCtest_vector_dot_product
 END
 :
-DEF PROCtest_dot_product
+DEF PROCtest_vector_dot_product
 CLS:PRINT"Running dot product tests."
 num_dp_tests=18:data_dp_tests=60
 :
@@ -37,8 +37,8 @@ FOR I%=1 TO num_dp_tests
 READ a,b,c,d,e,f
 PROCmake_vec(vec1, a, b, c):PROCprintf_vec("vec1",vec1)
 PROCmake_vec(vec2, d, e, f):PROCprintf_vec("vec2",vec2)
-result=FNfp_to_float(FNdot_product(vec1, vec2))
-verify=FNtest_dot_product(vec1, vec2)
+result=FNfp_to_float(FNvector_dot_product(vec1, vec2))
+verify=FNtest_vector_dot_product(vec1, vec2)
 error=ABS(verify-result)
 PRINT ;"dot product=";result;" verify=";verify;" ";
 IF error<err_delta PRINT "PASS" ELSE PRINT "FAIL error=";error:failed=failed+1
@@ -61,9 +61,9 @@ DEF PROCprintf_vec(name$,vec)
 PRINT name$;"=[";FNfp_to_float(vec!0);",";FNfp_to_float(vec!4);",";FNfp_to_float(vec!8);"] ";
 ENDPROC
 :
-DEF FNdot_product(B%, C%)
-=USR(dot_product)
-DEF FNtest_dot_product(B%, C%)
+DEF FNvector_dot_product(B%, C%)
+=USR(vector_dot_product)
+DEF FNtest_vector_dot_product(B%, C%)
 a=FNfp_to_float(B%!0):b=FNfp_to_float(B%!4):c=FNfp_to_float(B%!8)
 d=FNfp_to_float(C%!0):e=FNfp_to_float(C%!4):f=FNfp_to_float(C%!8)
 =a*d+b*e+c*f

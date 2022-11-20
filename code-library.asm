@@ -11,7 +11,7 @@
 ; Jump table to functions.
 ; ============================================================================
 
-b dot_product               ; +0
+b vector_dot_product               ; +0
 b matrix_multiply_vector    ; +4
 b matrix_multiply           ; +8
 b sine                      ; +12

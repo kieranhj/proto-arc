@@ -130,8 +130,8 @@ main:
 	swi OS_AddToVector
 
 	; LATE INITALISATION HERE!
-	;adr r2, blue_palette
-	;bl palette_set_block
+	adr r2, grey_palette
+	bl palette_set_block
 
 	bl init_3d_scene
 
@@ -462,27 +462,33 @@ module_filename:
 	.align 4
 .endif
 
-blue_palette:
+grey_palette:
 	.long 0x00000000
-	.long 0x00110000
-	.long 0x00220000
-	.long 0x00330000
-	.long 0x00440000
-	.long 0x00550000
-	.long 0x00660000
-	.long 0x00770000
-	.long 0x00880000
-	.long 0x00990000
-	.long 0x00AA0000
-	.long 0x00BB0000
-	.long 0x00CC0000
-	.long 0x00DD0000
-	.long 0x00EE0000
-	.long 0x00FF0000
+	.long 0x00111111
+	.long 0x00222222
+	.long 0x00333333
+	.long 0x00444444
+	.long 0x00555555
+	.long 0x00666666
+	.long 0x00777777
+	.long 0x00888888
+	.long 0x00999999
+	.long 0x00AAAAAA
+	.long 0x00BBBBBB
+	.long 0x00CCCCCC
+	.long 0x00DDDDDD
+	.long 0x00EEEEEE
+	.long 0x00FFFFFF
 
 .p2align 6
 sinus_table:
-.incbin "data/sine_8192.bin"
+	.incbin "data/sine_8192.bin"
+
+sqrt_table:
+	.incbin "data/sqrt_1024.bin"
+
+rsqrt_table:
+	.incbin "data/rsqrt_1024.bin"
 
 ; ============================================================================
 ; BSS Segment
@@ -498,5 +504,6 @@ palette_osword_block:
     ; (pad)
 
 .if _ENABLE_RECIPROCAL_TABLE
-.skip 65336*4
+reciprocal_table:
+	.skip 65336*4
 .endif

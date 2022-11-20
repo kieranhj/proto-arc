@@ -8,7 +8,6 @@
 ; Parameters:
 ;  R0=numerator  [s15.16]
 ;  R1=divisor    [s15.16]
-;  R12=ptr to reciprocal table (if used)
 ; Trashes:
 ;  R8-R10
 divide:
@@ -27,11 +26,12 @@ divide:
     rsbmi r1, r1, #0            ; make positive  
 
     .if _ENABLE_RECIPROCAL_TABLE
+    adr r9, reciprocal_table
     mov r1, r1, asr #8          ; [16.8]
     bic r8, r1, #0xff0000       ; [8.8]     ; overflow?
-    ldr r8, [r12, r8, lsl #2]   ; [0.16]
-    mov r12, r0, asr #8         ; [16.8]
-    mul r9, r12, r8             ; [8.24]    ; overflow?
+    ldr r8, [r9, r8, lsl #2]    ; [0.16]
+    mov r0, r0, asr #8          ; [16.8]
+    mul r9, r0, r8              ; [8.24]    ; overflow?
     mov r9, r9, asr #8          ; [8.16]
     .else
 

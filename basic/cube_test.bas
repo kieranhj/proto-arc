@@ -3,7 +3,7 @@ precision=65536
 :
 DIM code 65536
 OSCLI "LOAD <Test$Dir>.CodeLib "+STR$~(code)
-dot_product=code+0
+vector_dot_product=code+0
 matrix_multiply_vector=code+4
 matrix_multiply=code+8
 sine=code+12

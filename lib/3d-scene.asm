@@ -57,8 +57,8 @@ init_3d_scene:
 
 update_3d_scene:
     str lr, [sp, #-4]!
-    ; Create rotation matrix as object transform.
     .if 1
+    ; Create rotation matrix as object transform.
     adr r2, temp_matrix_1
     ldr r0, object_rot + 0
     bl matrix_make_rotate_x
@@ -281,6 +281,13 @@ draw_3d_scene:
     cmp r0, #0                  
     bpl .3                      ; normal facing away from the view direction.
 
+    ; Simple directional lighting from -z.
+    ldr r4, [r6, #8]            ; face_normal.z
+    rsb r4, r4, #0              ; make positive. [0.16]
+    mov r4, r4, lsr #12         ; [0.4]
+    cmp r4, #0x10
+    movge r4, #0x0f             ; clamp to [0-15]
+
     adr r8, polygon_buffer
 
     ldrb r5, [r11, #0]
@@ -319,8 +326,9 @@ draw_3d_scene:
 
     ldr pc, [sp], #4
 
+; Backfacing culling test.
 ; Parameters:
-;  R1=ptr to vector (vertex in world space) .
+;  R1=ptr to vector (vertex in world space).
 ;  R2=ptr to face normal
 ; Return:
 ;  R0=dot product of (v0-cp).n
@@ -336,9 +344,11 @@ backface_cull_test:
     sub r4, r4, r7
     sub r5, r5, r8          ; vertex - camera_pos
 
-    bl dot_product_loaded
+    bl vector_dot_product_loaded
     ldr pc, [sp], #4
 
+; Project world position to screen coordinates.
+;
 ; R2=ptr to vector (position in world space).
 ; Returns:
 ;  R0=screen x

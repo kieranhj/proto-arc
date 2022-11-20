@@ -30,9 +30,9 @@
 ; A.B = a1 * b1 + a2 * b2 + a3 * b3
 ; A.B = |A||B|.cos T
 ;
-dot_product:
+vector_dot_product:
     ldmia r1, {r3-r5}                   ; [s10.10]
-dot_product_loaded:
+vector_dot_product_loaded:
     ldmia r2, {r6-r8}                   ; [s10.10]
 
     mov r3, r3, asr #MULTIPLICATION_SHIFT    ; [s10.5]
@@ -47,6 +47,53 @@ dot_product_loaded:
     mla r0, r5, r8, r0                  ;   += a3 * b3  [s20.10]
 
     mov pc, lr
+
+; Length of vector.
+; Parameters:
+;  R1=ptr to vector A.
+; Returns:
+;  R0=length of vector A.
+; Trashes: R2
+;
+; Compute length = sqrt(x*x + y*y + z*z)
+vector_length:
+    str lr, [sp, #-4]!
+    mov r2, r1              ; B=A
+    bl vector_dot_product   ; Compute A.A = (x*x + y*y + z*z)
+    mov r1, r0
+    bl sqrt
+    ldr pc, [sp], #4
+
+; Squared length of vector.
+; Parameters:
+;  R1=ptr to vector A.
+; Returns:
+;  R0=length of vector A.
+; Trashes: R2
+;
+; Compute sq_length = x*x + y*y + z*z
+vector_sq_length:
+    str lr, [sp, #-4]!
+    mov r2, r1              ; B=A
+    bl vector_dot_product   ; Compute A.A = (x*x + y*y + z*z)
+    ldr pc, [sp], #4
+
+
+; 1/length of vector.
+; Parameters:
+;  R1=ptr to vector A.
+; Returns:
+;  R0=length of vector A.
+; Trashes: R2
+;
+; Compute 1/length = rsqrt(x*x + y*y + z*z)
+vector_recip_length:
+    str lr, [sp, #-4]!
+    mov r2, r1              ; B=A
+    bl vector_dot_product   ; Compute A.A = (x*x + y*y + z*z)
+    mov r1, r0
+    bl rsqrt
+    ldr pc, [sp], #4
 
 
 .if _DEBUG

@@ -49,6 +49,7 @@ debug_write_fp:
 .include "lib/vector.asm"
 .include "lib/matrix.asm"
 .include "lib/divide.asm"
+.include "lib/sqrt.asm"
 
 ; ============================================================================
 
@@ -63,7 +64,7 @@ debug_write_fp:
 ;
 ; Computes R0 = A . B where B is a unit vector.
 ;
-dot_product_unit:
+vector_dot_product_unit:
     ldmia r1, {r3-r5}                   ; [s10.10]
     ldmia r2, {r6-r8}                   ; [s1.10]
 
