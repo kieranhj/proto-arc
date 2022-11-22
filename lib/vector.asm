@@ -103,6 +103,7 @@ vector_dot_product_no_load:
     mov pc, lr
 
 
+.if _INCLUDE_SQRT           ; these functions rely on SQRT.
 ; Length of vector.
 ; Parameters:
 ;  R1=ptr to vector A.
@@ -150,7 +151,7 @@ vector_recip_length:
     mov r1, r0
     bl rsqrt                ; trashes R9
     ldr pc, [sp], #4
-
+.endif
 
 .if _DEBUG
 ; R0=vector ptr.
@@ -164,4 +165,27 @@ debug_write_vector:
     ldr r0, [r3, #8]
     bl debug_write_fp
     ldmfd sp!, {r0, r3, pc}
+.endif
+
+.if 0               ; Feels like too early optimisation.
+; Dot product.
+; Parameters:
+;  R1=ptr to vector A.
+;  R2=ptr to unit vector B.
+; Returns:
+;  R0=dot product of A and B.
+; Trashes: R3-R8
+;
+; Computes R0 = A . B where B is a unit vector.
+;
+vector_dot_product_unit:
+    ldmia r1, {r3-r5}                   ; [s10.10]
+    ldmia r2, {r6-r8}                   ; [s1.10]
+
+    mul r0, r3, r6                      ; r0 = a1 * b1  [s10.20]
+    mla r0, r4, r7, r0                  ;   += a2 * b2  [s10.20]
+    mla r0, r5, r8, r0                  ;   += a3 * b3  [s10.20]
+
+    mov r0, r0, asr #PRECISION_BITS     ; [s10.10]
+    mov pc, lr
 .endif

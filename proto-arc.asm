@@ -20,6 +20,7 @@
 .equ Mode_Bytes, Screen_Stride*Mode_Height
 
 .include "lib/swis.h.asm"
+.include "lib/config.h.asm"
 
 .macro SET_BORDER rgb
 	.if _DEBUG_RASTERS
@@ -103,11 +104,8 @@ main:
 	ble .1
 
 	; EARLY INITIALISATION HERE! (Tables etc.)
-	.if 0	; TODO: _ENABLE_RECIPROCAL_TABLE
-	bl MakeReciprocal
-	.endif
-	; TODO: bl MakeSinus
-	bl initialise_span_buffer
+	bl maths_init
+	; bl initialise_span_buffer
 
 	.if _ENABLE_ROCKET
 	bl rocket_init
@@ -445,7 +443,7 @@ screen_addr:
 .include "lib/maths.asm"
 .include "lib/3d-scene.asm"
 .include "lib/mode9-screen.asm"
-.include "lib/mode9-plot.asm"
+;.include "lib/mode9-plot.asm"
 .include "lib/mode9-palette.asm"
 
 .if _ENABLE_ROCKET
@@ -480,20 +478,6 @@ grey_palette:
 	.long 0x00EEEEEE
 	.long 0x00FFFFFF
 
-.p2align 6
-sinus_table:
-	.incbin "data/sine_8192.bin"
-
-sqrt_table:
-	.incbin "data/sqrt_1024.bin"
-
-rsqrt_table:
-	.incbin "data/rsqrt_1024.bin"
-
-; ============================================================================
-; BSS Segment
-; ============================================================================
-
 palette_osword_block:
     .skip 8
     ; logical colour
@@ -503,7 +487,8 @@ palette_osword_block:
     ; blue
     ; (pad)
 
-.if _ENABLE_RECIPROCAL_TABLE
-reciprocal_table:
-	.skip 65336*4
-.endif
+.include "lib/tables.asm"
+
+; ============================================================================
+; BSS Segment
+; ============================================================================

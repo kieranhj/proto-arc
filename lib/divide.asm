@@ -2,8 +2,6 @@
 ; Division routines.
 ; ============================================================================
 
-.equ _ENABLE_RECIPROCAL_TABLE, 0
-
 ; Divide R0 by R1
 ; Parameters:
 ;  R0=numerator  [s15.16]
@@ -25,7 +23,7 @@ divide:
     cmp r1, #0
     rsbmi r1, r1, #0            ; make positive  
 
-    .if _ENABLE_RECIPROCAL_TABLE
+    .if _USE_RECIPROCAL_TABLE
     adr r9, reciprocal_table
     mov r1, r1, asr #8          ; [16.8]
     bic r8, r1, #0xff0000       ; [8.8]     ; overflow?
@@ -74,7 +72,7 @@ divide:
 	.align 4
 	.long 0
 
-.if _ENABLE_RECIPROCAL_TABLE
+.if _USE_RECIPROCAL_TABLE
 ; Parameters:
 ;  R12=ptr to space for 65536 word table = 256K!
 MakeReciprocal:
