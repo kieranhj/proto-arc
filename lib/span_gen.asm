@@ -11,12 +11,12 @@ gen_code_pointers_p:
 
 ; Registers used during span plotting.
 ; r0 = not used
-; r1 = not used
-; r2 = not used [typically X start]
+; r1 = X end (in pixels)
+; r2 = not used [typically X start (in pixels)]
 ; r3 = temp [word read from screen]
 ; r4 = not used
 ; r5 = not used
-; r6 = not used
+; r6 = temp [construct word to write]
 ; r7 = not used
 ; r8 = not used [typically Y rasterline for outer loop]
 ; r9 = colour word [preserved]

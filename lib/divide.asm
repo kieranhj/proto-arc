@@ -9,6 +9,9 @@
 ; Trashes:
 ;  R8-R10
 divide:
+    ; Limited precision.
+    mov r1, r1, asr #8          ; [16.8]
+
     CMP R1,#0                   ; Test for division by zero
     ADREQ R0,divbyzero          ; and flag an error
     SWIEQ OS_GenerateError      ; when necessary
@@ -25,7 +28,6 @@ divide:
 
     .if _USE_RECIPROCAL_TABLE
     adr r9, reciprocal_table
-    mov r1, r1, asr #8          ; [16.8]
     bic r8, r1, #0xff0000       ; [8.8]     ; overflow?
     ldr r8, [r9, r8, lsl #2]    ; [0.16]
     mov r0, r0, asr #8          ; [16.8]
@@ -33,8 +35,8 @@ divide:
     mov r9, r9, asr #8          ; [8.16]
     .else
 
+    ; Limited precision.
     mov r0, r0, asl #8          ; [8.16]
-    mov r1, r1, asr #8          ; [16.8]
 
     ; Taken from Archimedes Operating System, page 28.
     MOV R8, #1
