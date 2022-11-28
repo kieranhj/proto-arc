@@ -6,28 +6,47 @@
 .equ OBJ_MAX_FACES, 6
 .equ OBJ_VERTS_PER_FACE, 4
 
-; TODO: Think about doubling viewport scale and halving world scale
-;       If that makes things easier wrt [8.16] fixed point precision.
-;       E.g. [32,32,32] cube would map to [64,64] pixels.
-;       Therefore camera would be at -80.0 so far plane would be
-;       256-80=176, giving more room to move objects around.
+; The camera viewport is assumed to be [-1,+1] across its widest axis.
+; Therefore we multiply all projected coordinates by the screen width/2
+; in order to map the viewport onto the entire screen.
 
-.equ VIEWPORT_SCALE, (Screen_Width/2) * PRECISION_MULTIPLIER
-.equ VIEWPORT_CENTRE_X, (Screen_Width/2) * PRECISION_MULTIPLIER
+.equ VIEWPORT_SCALE,    (Screen_Width /2) * PRECISION_MULTIPLIER
+.equ VIEWPORT_CENTRE_X, (Screen_Width /2) * PRECISION_MULTIPLIER
 .equ VIEWPORT_CENTRE_Y, (Screen_Height/2) * PRECISION_MULTIPLIER
 
 ; ============================================================================
 ; Scene data.
 ; ============================================================================
 
+; For simplicity, we assume that the camera has a FOV of 90 degrees, so the
+; distance to the view plane is 'd' is the same as the viewport scale. All
+; coordinates (x,y) lying on the view plane +d from the camera map 1:1 with
+; screen coordinates.
+;
+;   h = viewport_scale / d.
+;
+; However as much of our maths in the scene is calculated as [8.16] maximum
+; precision, having a camera distance of 160 only leaves 96 untis of depth
+; to place objects within z=[0, 96] before potential problems occur.
+;
+; To solve this we use a smaller camera distance. d=80, giving h=160/80=2.
+; This means that all vertex coordinates will be multiplied up by 2 when
+; transformed to screen coordinates. E.g. the point (32,32,0) will map
+; to (64,64) on the screen.
+;
+; This now gives us z=[0,176] to play with before any overflow errors are
+; likely to occur. If this does happen, then we can further reduce the
+; coordinate space and use d=40, h=4, etc.
+
+
 camera_pos:
-    VECTOR3 0.0, 0.0, -160.0
+    VECTOR3 0.0, 0.0, -80.0
 
 ; Note camera is fixed to view down +z axis.
 ; TODO: Camera rotation/direction/look at?
 
 object_pos:
-    VECTOR3 0.0, 0.0, 64.0
+    VECTOR3 0.0, 0.0, 32.0
 
 object_rot:
     VECTOR3 0.0, 0.0, 0.0
@@ -426,14 +445,14 @@ object_num_verts:
     .long 8
 
 object_verts:
-    VECTOR3 -64.0,  64.0, -64.0
-    VECTOR3  64.0,  64.0, -64.0
-    VECTOR3  64.0, -64.0, -64.0
-    VECTOR3 -64.0, -64.0, -64.0
-    VECTOR3 -64.0,  64.0,  64.0
-    VECTOR3  64.0,  64.0,  64.0
-    VECTOR3  64.0, -64.0,  64.0
-    VECTOR3 -64.0, -64.0,  64.0
+    VECTOR3 -32.0,  32.0, -32.0
+    VECTOR3  32.0,  32.0, -32.0
+    VECTOR3  32.0, -32.0, -32.0
+    VECTOR3 -32.0, -32.0, -32.0
+    VECTOR3 -32.0,  32.0,  32.0
+    VECTOR3  32.0,  32.0,  32.0
+    VECTOR3  32.0, -32.0,  32.0
+    VECTOR3 -32.0, -32.0,  32.0
 
 object_num_faces:
     .long 6

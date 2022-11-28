@@ -181,8 +181,15 @@ polygon_rasterise_edge:
     ldmia r12!, {r3-r6}         ; [xs, ys, ye, m]
     adr r11, polygon_span_table
 
-    ; TODO: Track min/max y value for optimisation.
-    ; TODO: Clip outside of screen.
+    ; Track min y value for optimisation.
+    ldr r0, polygon_min_y
+    cmp r4, r0
+    bge .1
+
+    ; Clamp to min_y=0.
+    movs r0, r4
+    movmi r0, #0
+    str r0, polygon_min_y
 
 .1:
     ; Clip to screen.
@@ -215,6 +222,11 @@ polygon_rasterise_edge:
     cmp r4, r5                  ; y < ye
     blt .1
 .3:
+
+    ; Track max y for optimisation.
+    ldr r0, polygon_max_y
+    cmp r4, r0
+    strgt r4, polygon_max_y
 
     mov pc, lr
 
@@ -340,9 +352,9 @@ polygon_plot_spans:
     blt .1
 
     ; Reset polygon min/max y.
-    mov r0, #256
+    mov r0, #-1
     str r0, polygon_max_y
-    mov r0, #0
+    mov r0, #256
     str r0, polygon_min_y
 
 .3:
@@ -361,10 +373,10 @@ polygon_colour:
     .long 0
 
 polygon_min_y:
-    .long 0     ; TODO: Track for optimisation.
+    .long 256
 
 polygon_max_y:
-    .long 256   ; TODO: Track for optimisation.
+    .long -1
 
 polygon_edge_list:
     .skip 4*4*OBJ_MAX_FACES     ; 4 words per edge.
