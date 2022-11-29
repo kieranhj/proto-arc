@@ -18,8 +18,8 @@ init_rubber_cube:
 
     ; Update the rubber cube frame.
     ldr r0, rubber_cube_frame
-    add r0, r0, #1
-    ands r0, r0, #0xff           ; assumes RUBBER_CUBE_MAX_FRAMES=256
+    add r0, r0, #MATHS_CONST_1
+    bics r0, r0, #0xff000000           ; assumes RUBBER_CUBE_MAX_FRAMES=256
     str r0, rubber_cube_frame
     bne .1
 
@@ -54,12 +54,13 @@ update_rubber_cube:
 
     ; R12 = ptr to edge list buffer for frame.
     ldr r0, rubber_cube_frame
+    mov r0, r0, lsr #16         ; frame [8.0]
     adr r12, rubber_cube_edge_list
     add r12, r12, r0, lsl #7    ; edge_list + frame * 128
     add r12, r12, r0, lsl #6    ;           + frame * 64  = &edge_list[frame]
     
     ; R10 = ptr to rubber cube frame.
-    adr r10, rubber_cube_frame_list
+    adr r10, rubber_cube_face_list
     add r10, r10, r0, lsl #5    ; frame_ptr = frame_list + frame * 32
     str r6, [r10], #4           ; needs updating to visible faces.
 
@@ -114,8 +115,9 @@ update_rubber_cube:
 
     ; Write number of visible faces for rubber frame.
     ldr r0, rubber_cube_frame
+    mov r0, r0, lsr #16         ; frame [8.0]
     ; R10 = ptr to rubber cube frame.
-    adr r10, rubber_cube_frame_list
+    adr r10, rubber_cube_face_list
     add r10, r10, r0, lsl #5    ; frame_list + frame * 32
     str r6, [r10]               ; write number of visible faces.
 
@@ -132,8 +134,9 @@ draw_rubber_cube:
 
     ; Determine historical frame to use for this line.
     ldr r0, rubber_cube_frame   ; start simple = frame - Y
-    sub r0, r0, r8
-    and r0, r0, #0xff
+    sub r0, r0, r8, lsl #15
+    bic r0, r0, #0xff000000
+    mov r0, r0, lsr #16         ; frame [8.0]
 
     ; Locate ptr to edges for this frame.
     adr r12, rubber_cube_edge_list
@@ -141,7 +144,7 @@ draw_rubber_cube:
     add r12, r12, r0, lsl #6    ;           + frame * 64  = &edge_list[frame]
 
     ; Locate ptr to frame data.
-    adr r7, rubber_cube_frame_list
+    adr r7, rubber_cube_face_list
     add r7, r7, r0, lsl #5      ; frame_ptr = frame_list + frame * 32
     ldr r0, [r7], #4            ; visible faces
 
@@ -233,8 +236,8 @@ draw_rubber_cube:
 
     ; Update the rubber cube frame.
     ldr r0, rubber_cube_frame
-    add r0, r0, #1
-    ands r0, r0, #0xff           ; assumes RUBBER_CUBE_MAX_FRAMES=256
+    add r0, r0, #MATHS_CONST_1
+    bic r0, r0, #0xff000000           ; assumes RUBBER_CUBE_MAX_FRAMES=256
     str r0, rubber_cube_frame
 
     ldr pc, [sp], #4
@@ -246,12 +249,13 @@ rubber_cube_frame:
 
 ; For each frame:               [MAX_FRAMES]
 ;  long number_of_faces         (4)
+;  long packed_min_max_y        (4)
 ;  For each face:               [MAX_VISIBLE_FACES]
-;   long number_of_edges         (4)    <= could be packed.
+;   long number_of_edges         (4)
 ;   long face_colour             (4)
 ; 32 bytes.
 
-rubber_cube_frame_list:
+rubber_cube_face_list:
     .skip RUBBER_CUBE_MAX_FRAMES * RUBBER_CUBE_FRAME_SIZE
 
 ; WARNING: Code must change if these do!
