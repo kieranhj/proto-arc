@@ -4,7 +4,9 @@
 
 .equ OBJ_MAX_VERTS, 8
 .equ OBJ_MAX_FACES, 6
+.equ OBJ_MAX_VISIBLE_FACES, 3       ; True for cube.
 .equ OBJ_VERTS_PER_FACE, 4
+.equ OBJ_MAX_EDGES_PER_FACE, OBJ_VERTS_PER_FACE
 
 ; The camera viewport is assumed to be [-1,+1] across its widest axis.
 ; Therefore we multiply all projected coordinates by the screen width/2

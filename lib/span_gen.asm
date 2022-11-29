@@ -9,7 +9,7 @@
 gen_code_pointers_p:
 	.long gen_code_pointers
 
-; Registers used during span plotting.
+; Registers used during span plotting functions.
 ; r0 = not used
 ; r1 = X end (in pixels)
 ; r2 = not used [typically X start (in pixels)]
@@ -22,7 +22,9 @@ gen_code_pointers_p:
 ; r9 = colour word [preserved]
 ; r10 = ptr to screen addr [updated]
 ; r11 = ptr to start of screen rasterline [updated]
-; r14 = not used
+; r12 = not used
+; r13 = not used
+; r14 = link address
 
 ; screen=abcdefgh
 ; colour=iiiiiiii

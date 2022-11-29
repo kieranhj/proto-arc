@@ -9,7 +9,7 @@
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 1
 
-.equ Screen_Banks, 2
+.equ Screen_Banks, 3
 .equ Screen_Mode, 9
 .equ Screen_Width, 320
 .equ Screen_Height, 256
@@ -129,9 +129,10 @@ main:
 
 	; LATE INITALISATION HERE!
 	adr r2, grey_palette
-	bl palette_set_block
+	;bl palette_set_block
 
 	bl init_3d_scene
+	bl init_rubber_cube
 
 	; Sync tracker.
 	.if _ENABLE_ROCKET
@@ -148,6 +149,16 @@ main:
 	SWI OS_Byte
 
 main_loop:
+
+.if Screen_Banks == 2
+	; Block if there's a buffer pending to be displayed when double buffered.
+	; This means that we overran the previous frame. Triple buffering may
+	; help here. Or not. ;)
+.2:
+	ldr r1, buffer_pending
+	cmp r1, #0
+	bne .2	
+.endif
 
 	; Block if we've not even had a vsync since last time - we're >50Hz!
 	ldr r1, last_vsync
@@ -181,10 +192,13 @@ main_loop:
 	bl screen_cls
 
 	SET_BORDER 0x0000ff	; red
-	bl update_3d_scene
+	bl update_rubber_cube
+	;bl update_3d_scene
 
 	SET_BORDER 0xff0000	; blue
-	bl draw_3d_scene
+	ldr r11, screen_addr
+	bl draw_rubber_cube
+	;bl draw_3d_scene
 
 	SET_BORDER 0x000000	; black
 	bl show_screen_at_vsync
@@ -233,7 +247,7 @@ debug_write_vsync_count:
 	adr r0, debug_string
 	swi OS_WriteO
 .else
-	ldr r0, vsync_count		; vsync_delta	; rocket_sync_time
+	ldr r0, vsync_delta	; rocket_sync_time
 	adr r1, debug_string
 	mov r2, #8
 	swi OS_ConvertHex4
@@ -442,6 +456,7 @@ screen_addr:
 
 .include "lib/maths.asm"
 .include "lib/3d-scene.asm"
+.include "lib/rubber-cube.asm"
 .include "lib/mode9-screen.asm"
 ;.include "lib/mode9-plot.asm"
 .include "lib/mode9-palette.asm"

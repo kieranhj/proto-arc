@@ -2,6 +2,8 @@
 ; Polygon routines.
 ; ============================================================================
 
+.equ POLYGON_EDGE_SIZE, 4*4        ; in bytes.
+
 ; Compute edge list from a quad specified as indices into a projected vertex array.
 ; Parameters:
 ;  R2=ptr to projected vertex array (x,y)
@@ -18,14 +20,14 @@ polygon_quad_to_edge_list:
     and r0, r3, #0xff           ; index 0
     add r5, r2, r0, lsl #3      ; projected_verts + index*8
     ldmia r5, {r6, r7}          ; x_start, y_start
-    mov r6, r6, lsl #16         ; xs [16.0]
+    mov r6, r6, lsl #16         ; xs [16.16]
 
 
     mov r0, r3, lsr #8          ; 
     and r0, r0, #0xff           ; index 1
     add r5, r2, r0, lsl #3      ; projected_verts + index*8
     ldmia r5, {r8, r9}          ; x_end, y_end
-    mov r8, r8, lsl #16         ; xe [16.0]
+    mov r8, r8, lsl #16         ; xe [16.16]
 
     subs r1, r9, r7             ; int(y_end) - int(y_start)
     mov r4, r8                  ; (index 1 x_start)
@@ -49,7 +51,7 @@ polygon_quad_to_edge_list:
 
     ; Compute m = (xe-xs) / (ye-ys) for edge 0->1
     sub r0, r8, r6              ; xs = xe-xs
-    mov r1, r1, asl #16         ; (ye-ys) [16.0]
+    mov r1, r1, asl #16         ; (ye-ys) [16.16]
     bl divide                   ; m = (xe-xs) / (ye-ys)
 
     ; Store edge 0->1 dda data:
@@ -64,7 +66,7 @@ polygon_quad_to_edge_list:
     and r0, r0, #0xff           ; index 2
     add r5, r2, r0, lsl #3      ; projected_verts + index*8
     ldmia r5, {r8, r9}          ; x_end, y_end
-    mov r8, r8, lsl #16         ; xe [16.0]
+    mov r8, r8, lsl #16         ; xe [16.16]
 
     subs r1, r9, r7             ; int(y_end) - int(y_start)
     mov r4, r8                  ; (index 2 x_start)
@@ -88,7 +90,7 @@ polygon_quad_to_edge_list:
 
     ; Compute m = (xe-xs) / (ye-ys) for edge 1->2
     sub r0, r8, r6              ; xs = xe-xs
-    mov r1, r1, asl #16         ; (ye-ys) [16.0]
+    mov r1, r1, asl #16         ; (ye-ys) [16.16]
     bl divide                   ; m = (xe-xs) / (ye-ys)
 
     ; Store edge 1->2 dda data:
@@ -102,7 +104,7 @@ polygon_quad_to_edge_list:
     mov r0, r3, lsr #24         ; index 3
     add r5, r2, r0, lsl #3      ; projected_verts + index*8
     ldmia r5, {r8, r9}          ; x_end, y_end
-    mov r8, r8, lsl #16         ; xe [16.0]
+    mov r8, r8, lsl #16         ; xe [16.16]
 
     subs r1, r9, r7             ; int(y_end) - int(y_start)
     mov r4, r8                  ; (index 3 x_start)
@@ -126,7 +128,7 @@ polygon_quad_to_edge_list:
 
     ; Compute m = (xe-xs) / (ye-ys) for edge 2->3
     sub r0, r8, r6              ; xs = xe-xs
-    mov r1, r1, asl #16         ; (ye-ys) [16.0]
+    mov r1, r1, asl #16         ; (ye-ys) [16.16]
     bl divide                   ; m = (xe-xs) / (ye-ys)
 
     ; Store edge 2->3 dda data:
@@ -140,7 +142,7 @@ polygon_quad_to_edge_list:
     and r0, r3, #0xff           ; index 0
     add r5, r2, r0, lsl #3      ; projected_verts + index*8
     ldmia r5, {r8, r9}          ; x_end, y_end
-    mov r8, r8, lsl #16         ; xe [16.0]
+    mov r8, r8, lsl #16         ; xe [16.16]
 
     subs r1, r9, r7             ; int(y_end) - int(y_start)
     ; Skip horizontal edges.
@@ -162,7 +164,7 @@ polygon_quad_to_edge_list:
 
     ; Compute m = (xe-xs) / (ye-ys) for edge 3->0
     sub r0, r8, r6              ; xs = xe-xs
-    mov r1, r1, asl #16         ; (ye-ys) [16.0]
+    mov r1, r1, asl #16         ; (ye-ys) [16.16]
     bl divide                   ; m = (xe-xs) / (ye-ys)
 
     ; Store edge 3->0 dda data:
@@ -210,7 +212,7 @@ polygon_rasterise_edge:
     movlt r2, #0                ; clamp left.
     ; Off right hand side? (x>=width)
     cmp r3, #Screen_Width<<PRECISION_BITS
-    ldrge r2, .4                ; clamp right.
+    ldrgt r2, polygon_clip_right_side   ; clamp right.
 
     orr r0, r0, r2, lsr #16     ; mask in integer portion.
     str r0, [r11, r4, lsl #2]   ; span[y]
@@ -230,8 +232,8 @@ polygon_rasterise_edge:
 
     mov pc, lr
 
-.4:
-    FLOAT_TO_FP Screen_Width-1  ; clamp X to this value.
+polygon_clip_right_side:
+    FLOAT_TO_FP Screen_Width    ; clamp X to this value.
 
 
 ; Plot a quad.
@@ -246,7 +248,7 @@ polygon_plot_quad:
     ; Convert polygon indices to an edge list.
     adr r12, polygon_edge_list      ; ptr to edge_list [xs, m, ys, ye]
     bl polygon_quad_to_edge_list
-    ; R0=number of edges.
+    ; R11=number of edges.
 
     ; Shouldn't happen unless the poly is degenerate?
     .if _DEBUG
@@ -379,4 +381,4 @@ polygon_max_y:
     .long -1
 
 polygon_edge_list:
-    .skip 4*4*OBJ_MAX_FACES     ; 4 words per edge.
+    .skip POLYGON_EDGE_SIZE * OBJ_MAX_EDGES_PER_FACE     ; 4 words per edge.
