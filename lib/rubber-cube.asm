@@ -4,7 +4,7 @@
 
 ; WARNING: Code must change if these do!
 .equ RUBBER_CUBE_MAX_FRAMES, 256
-.equ RUBBER_CUBE_FRAME_SIZE, 4 + 4 + OBJ_MAX_VISIBLE_FACES * 8  ; 32
+.equ RUBBER_CUBE_FACES_SIZE, 4 + 4 + OBJ_MAX_VISIBLE_FACES * 8  ; 32
 
 
 init_rubber_cube:
@@ -62,7 +62,7 @@ update_rubber_cube:
     ; R10 = ptr to rubber cube frame.
     adr r10, rubber_cube_face_list
     add r10, r10, r0, lsl #5    ; frame_ptr = frame_list + frame * 32
-    str r6, [r10], #4           ; needs updating to visible faces.
+    add r10, r10, #4            ; needs updating to visible faces.
 
     .2:
 
@@ -113,6 +113,12 @@ update_rubber_cube:
     cmp r11, r9
     blt .2
 
+    .if _DEBUG
+    cmp r6, #0                  ; no visible faces?
+    adreq R0,polyerror          ; and flag an error
+    swieq OS_GenerateError      ; when necessary
+    .endif
+
     ; Write number of visible faces for rubber frame.
     ldr r0, rubber_cube_frame
     mov r0, r0, lsr #16         ; frame [8.0]
@@ -134,7 +140,7 @@ draw_rubber_cube:
 
     ; Determine historical frame to use for this line.
     ldr r0, rubber_cube_frame   ; start simple = frame - Y
-    sub r0, r0, r8, lsl #15
+    sub r0, r0, r8, lsl #16     ; or lsl #15 to use Y/2
     bic r0, r0, #0xff000000
     mov r0, r0, lsr #16         ; frame [8.0]
 
@@ -148,18 +154,14 @@ draw_rubber_cube:
     add r7, r7, r0, lsl #5      ; frame_ptr = frame_list + frame * 32
     ldr r0, [r7], #4            ; visible faces
 
-    cmp r0, #0
-    beq .5                      ; no faces
-
-    ; TODO: Store min/max y for face to eliminate this without the edge loop.
+    ; TODO: Store min/max y for face to eliminate this without the edge loop?
 
     ; For each visible face in the frame.
     .2:
-
     ; Get number of edges and face colour word.
     ldmia r7!, {r2, r9}
 
-    mov r1, #0                  ; track (xs,xe) span.
+    mov r1, #0xff00             ; track (xs,xe) span.
 
     ; For each edge in the visible face.
     .3:
@@ -184,17 +186,23 @@ draw_rubber_cube:
     ldrgt r3, polygon_clip_right_side       ; clamp right
 
     ; Keep track of span (xs, xe)
-    mov r1, r1, lsl #16             ; shift x value to upper 16 bits.
+    movs r1, r1, lsl #1           ; shift counting bit into carry.
+    mov r1, r1, lsl #15             ; shift x value to upper 16 bits.
     orr r1, r1, r3, lsr #16         ; mask integer portion into lower bits.
 
-    ; TODO: Terminate after two matching edges in the face?
+    ; Can't terminate after two matching edges in the face because
+    ; we need to walk through all the edges anyway.
 
     ; Next edge.
     .4:
     subs r2,r2, #1
     bne .3
 
-    ;     Plot span for face.
+    cmp r1, #0xff00                   ; no matching edges?
+    beq .6
+
+    .7:
+    ; Plot span for face.
 
     ; Unpack [x1, x2] into separate registers.
     mov r2, r1, lsr #16         ; xs
@@ -256,7 +264,7 @@ rubber_cube_frame:
 ; 32 bytes.
 
 rubber_cube_face_list:
-    .skip RUBBER_CUBE_MAX_FRAMES * RUBBER_CUBE_FRAME_SIZE
+    .skip RUBBER_CUBE_MAX_FRAMES * RUBBER_CUBE_FACES_SIZE
 
 ; WARNING: Code must change if these do!
 ; Actually doesn't need to be a circular buffer, we preallocate the max

@@ -162,12 +162,12 @@ update_3d_scene:
 
     ; Update any scene vars, camera, object position etc. (Rocket?)
     ldr r0, object_rot+0
-    add r0, r0, #MATHS_CONST_HALF
+    add r0, r0, #0
     bic r0, r0, #0xff000000         ; brads
     str r0, object_rot+0
 
     ldr r0, object_rot+4
-    add r0, r0, #MATHS_CONST_1
+    add r0, r0, #MATHS_CONST_QUARTER
     bic r0, r0, #0xff000000         ; brads
     str r0, object_rot+4
 
