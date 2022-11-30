@@ -75,9 +75,9 @@ divide:
 	.long 0
 
 .if _USE_RECIPROCAL_TABLE
-; Parameters:
-;  R12=ptr to space for 65536 word table = 256K!
+; Trashes: r0-r2, r8-r9, r12
 MakeReciprocal:
+    adr r12, reciprocal_table
     mov r2, #0
     str r2, [r12], #4
  

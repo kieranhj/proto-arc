@@ -3,9 +3,9 @@
 ; ============================================================================
 
 ; R8 = screen address
-; trashes r0-r9
+; trashes r0-r9,r11,r12
 screen_cls:
-	add r9, r8, #Screen_Bytes
+	add r12, r11, #Screen_Bytes
 	mov r0, #0
 	mov r1, #0
 	mov r2, #0
@@ -14,19 +14,27 @@ screen_cls:
 	mov r5, #0
 	mov r6, #0
 	mov r7, #0
+	mov r8, #0
+	mov r9, #0
+.if 1
 .1:
-	stmia r8!, {r0-r7}
-	stmia r8!, {r0-r7}
-	stmia r8!, {r0-r7}
-	stmia r8!, {r0-r7}
-	stmia r8!, {r0-r7}
-	stmia r8!, {r0-r7}
-	stmia r8!, {r0-r7}
-	stmia r8!, {r0-r7}
-	stmia r8!, {r0-r7}
-	stmia r8!, {r0-r7}
-	cmp r8, r9
+	stmia r11!, {r0-r9}		; 40 bytes
+	stmia r11!, {r0-r9}
+	stmia r11!, {r0-r9}
+	stmia r11!, {r0-r9}
+	stmia r11!, {r0-r9}
+	stmia r11!, {r0-r9}
+	stmia r11!, {r0-r9}
+	stmia r11!, {r0-r9}		; *8 = 320 bytes
+	cmp r11, r12
 	blt .1
+.else
+	; No loop version - saves a couple of scanlines if desperate.
+	; Better to generate this code at runtime...!
+	.rept Screen_Bytes / 40
+	stmia r11!, {r0-r9}
+	.endr
+.endif
 	mov pc, lr
 
 .if 0

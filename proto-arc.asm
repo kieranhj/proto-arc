@@ -150,6 +150,14 @@ main:
 
 main_loop:
 
+	SET_BORDER 0x0000ff	; red
+	bl update_rubber_cube
+	;bl update_3d_scene
+
+	SET_BORDER 0x000000	; black
+	; Really we need something more sophisticated here.
+	; Block only if there's no free buffer to write to.
+
 .if Screen_Banks == 2
 	; Block if there's a buffer pending to be displayed when double buffered.
 	; This means that we overran the previous frame. Triple buffering may
@@ -186,14 +194,10 @@ main_loop:
 
 	; DO STUFF HERE!
 	bl get_next_screen_for_writing
-	ldr r8, screen_addr
+	ldr r11, screen_addr
 
 	SET_BORDER 0x00ff00	; green
 	bl screen_cls
-
-	SET_BORDER 0x0000ff	; red
-	bl update_rubber_cube
-	;bl update_3d_scene
 
 	SET_BORDER 0xff0000	; blue
 	ldr r11, screen_addr
