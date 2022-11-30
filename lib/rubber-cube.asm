@@ -2,6 +2,8 @@
 ; Rubber cube.
 ; ============================================================================
 
+.equ RUBBER_CUBE_LIGHTING, 0
+
 ; WARNING: Code must change if these do!
 .equ RUBBER_CUBE_MAX_FRAMES, 256
 .equ RUBBER_CUBE_FACES_SIZE, 4 + 4 + OBJ_MAX_VISIBLE_FACES * 8  ; 32
@@ -97,7 +99,19 @@ update_rubber_cube:
     str r0, [r10], #4
 
     ; Write face colour into rubber frame face list.
+    .if RUBBER_CUBE_LIGHTING
+    ; Simple directional lighting from -z.
+    adr r2, transformed_normals
+    add r2, r2, r11, lsl #3
+    add r2, r2, r11, lsl #2     ; face_normal + face_index*12
+    ldr r0, [r2, #8]            ; face_normal.z
+    rsb r0, r0, #0              ; make positive. [0.16]
+    mov r0, r0, lsr #12         ; [0.4]
+    cmp r0, #0x10
+    movge r0, #0x0f             ; clamp to [0-15]
+    .else
     add r0, r11, #1             ; colour index = face index+1
+    .endif
 
     ; Convert colour index to colour word.
     orr r0, r0, r0, lsl #4
