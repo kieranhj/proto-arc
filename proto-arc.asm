@@ -9,6 +9,8 @@
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 1
 
+.equ _RUBBER_CUBE, 1
+
 .equ Screen_Banks, 3
 .equ Screen_Mode, 9
 .equ Screen_Width, 320
@@ -132,7 +134,9 @@ main:
 	;bl palette_set_block
 
 	bl init_3d_scene
+	.if _RUBBER_CUBE
 	bl init_rubber_cube
+	.endif
 
 	; Sync tracker.
 	.if _ENABLE_ROCKET
@@ -151,8 +155,11 @@ main:
 main_loop:
 
 	SET_BORDER 0x0000ff	; red
+	.if _RUBBER_CUBE
 	bl update_rubber_cube
-	;bl update_3d_scene
+	.else
+	bl update_3d_scene
+	.endif
 
 	SET_BORDER 0x000000	; black
 	; Really we need something more sophisticated here.
@@ -201,8 +208,11 @@ main_loop:
 
 	SET_BORDER 0xff0000	; blue
 	ldr r11, screen_addr
+	.if _RUBBER_CUBE
 	bl draw_rubber_cube
-	;bl draw_3d_scene
+	.else
+	bl draw_3d_scene
+	.endif
 
 	SET_BORDER 0x000000	; black
 	bl show_screen_at_vsync

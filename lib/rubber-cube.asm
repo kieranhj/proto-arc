@@ -7,7 +7,7 @@
 
 ; WARNING: Code must change if these do!
 .equ RUBBER_CUBE_MAX_FRAMES, 256
-.equ RUBBER_CUBE_FACES_SIZE, 4 + 4 + OBJ_MAX_VISIBLE_FACES * 8  ; 32
+.equ RUBBER_CUBE_FACES_SIZE, 64
 
 
 init_rubber_cube:
@@ -53,9 +53,9 @@ update_rubber_cube:
     ; Track min & max y for object.
     .if _POLYGON_STORE_MIN_MAX_Y
     mov r0, #65536
-    str r0, polygon_min_y
+    str r0, object_min_y
     mov r0, #-65536
-    str r0, polygon_max_y
+    str r0, object_max_y
     .endif
 
     ; Determine visible faces.
@@ -72,7 +72,7 @@ update_rubber_cube:
     
     ; R10 = ptr to rubber cube frame.
     adr r10, rubber_cube_face_list
-    add r10, r10, r0, lsl #5    ; frame_ptr = frame_list + frame * 32
+    add r10, r10, r0, lsl #6    ; frame_ptr = frame_list + frame * 64
     add r10, r10, #8            ; needs updating to visible faces.
 
     .2:
@@ -92,6 +92,13 @@ update_rubber_cube:
 
     cmp r0, #0                  
     bpl .3                      ; normal facing away from the view direction.
+
+    .if _POLYGON_STORE_MIN_MAX_Y
+    mov r0, #65536
+    str r0, polygon_min_y
+    mov r0, #-65536
+    str r0, polygon_max_y
+    .endif
 
     adr r2, projected_verts     ; projected vertex array.
     adr r5, object_face_indices
@@ -129,6 +136,22 @@ update_rubber_cube:
 
     str r0, [r10], #4           ; colour_word
 
+    ; Store polygon min/max y in face list.
+    ; Also update object min/max y at the same time.
+    .if _POLYGON_STORE_MIN_MAX_Y
+    ldr r1, object_min_y
+    ldr r0, polygon_min_y
+    cmp r0, r1
+    strlt r0, object_min_y
+    str r0, [r10], #4
+
+    ldr r1, object_max_y
+    ldr r0, polygon_max_y
+    cmp r0, r1
+    strgt r0, object_max_y
+    str r0, [r10], #4
+    .endif
+
     add r6, r6, #1              ; visible_faces++
 
     .3:
@@ -147,12 +170,12 @@ update_rubber_cube:
     mov r0, r0, lsr #16         ; frame [8.0]
     ; R10 = ptr to rubber cube frame.
     adr r10, rubber_cube_face_list
-    add r10, r10, r0, lsl #5    ; frame_list + frame * 32
+    add r10, r10, r0, lsl #6    ; frame_list + frame * 64
     str r6, [r10], #4           ; write number of visible faces.
 
     .if _POLYGON_STORE_MIN_MAX_Y
-    ldr r0, polygon_min_y
-    ldr r1, polygon_max_y
+    ldr r0, object_min_y
+    ldr r1, object_max_y
     orr r0, r0, r1, lsl #16
     str r0, [r10], #4           ; packed max:min for all faces.
     .endif
@@ -181,7 +204,7 @@ draw_rubber_cube:
 
     ; Locate ptr to frame data.
     adr r7, rubber_cube_face_list
-    add r7, r7, r0, lsl #5      ; frame_ptr = frame_list + frame * 32
+    add r7, r7, r0, lsl #6      ; frame_ptr = frame_list + frame * 64
     ldr r0, [r7], #4            ; visible faces
 
     .if _POLYGON_STORE_MIN_MAX_Y
@@ -190,7 +213,7 @@ draw_rubber_cube:
 
     mov r2, r1, lsr #16         ; max
     cmp r8, r2                  ; y > max
-    bgt .5                      ; skip scanline.
+    bge .5                      ; skip scanline.
 
     bic r1, r1, #0xff000000
     bic r1, r1, #0x00ff0000     ; min
@@ -205,7 +228,16 @@ draw_rubber_cube:
     ; Get number of edges and face colour word.
     ldmia r7!, {r2, r9}
 
-    ; TODO: Track min/max y for face to early out before edge loop.
+    ; Use min & max y for the face to early out if not on this scanline.
+    .if _POLYGON_STORE_MIN_MAX_Y
+    ldmia r7!, {r4, r5}
+    cmp r8, r4                  ; y < polygon_min_y?
+    addlt r12, r12, r2, lsl #4  ; edge_list+=16*number edges
+    blt .6                      ; skip face.
+    cmp r8, r5                  ; y > polygon_max_y?
+    addge r12, r12, r2, lsl #4  ; edge_list+=16*number edges
+    bge .6                      ; skip face.
+    .endif
 
     sub r2, r2, #1              ; number edges remaining.
     mov r1, #0xff00             ; track (xs,xe) span.
@@ -233,14 +265,14 @@ draw_rubber_cube:
     ldrgt r3, polygon_clip_right_side       ; clamp right
 
     ; Keep track of span (xs, xe)
-    movs r1, r1, lsl #1           ; shift counting bit into carry.
+    movs r1, r1, lsl #1             ; shift counting bit into carry.
     mov r1, r1, lsl #15             ; shift x value to upper 16 bits.
     orr r1, r1, r3, lsr #16         ; mask integer portion into lower bits.
 
     bcc .4
 
     ; Early out if we have had two edge matches.
-    add r12, r12, r2, lsl #4          ; edge_list+=16*remaining edges
+    add r12, r12, r2, lsl #4        ; edge_list+=16*remaining edges
     b .7
 
     ; Next edge.
@@ -248,8 +280,8 @@ draw_rubber_cube:
     subs r2, r2, #1
     bpl .3
 
-    cmp r1, #0xff00                   ; no matching edges?
-    beq .6
+    cmp r1, #0xff00                 ; no matching edges?
+    beq .6                          ; skip plot.
 
     .7:
     ; Plot span for face.
@@ -305,13 +337,20 @@ rubber_cube_frame:
     .long 0
 
 
+object_min_y:
+    .long 0
+
+object_max_y:
+    .long 0
+
 ; For each frame:               [MAX_FRAMES]
 ;  long number_of_faces         (4)
-;  long packed_min_max_y        (4) max in high word, min in low word.
+;  long object_min_max_y        (4) max in high word, min in low word.
 ;  For each face:               [MAX_VISIBLE_FACES]
 ;   long number_of_edges         (4)
 ;   long face_colour_word        (4) as written to screen.
-; 32 bytes.
+;   long face_min_y              (4)
+;   long face_max_y              (4)
 
 rubber_cube_face_list:
     .skip RUBBER_CUBE_MAX_FRAMES * RUBBER_CUBE_FACES_SIZE
