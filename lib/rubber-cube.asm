@@ -3,6 +3,7 @@
 ; ============================================================================
 
 .equ RUBBER_CUBE_LIGHTING, 0
+.equ RUBBER_CUBE_DELAY_SHIFT, 16    ; 16=-Y, 15=-Y/2, 0=none
 
 ; WARNING: Code must change if these do!
 .equ RUBBER_CUBE_MAX_FRAMES, 256
@@ -154,7 +155,7 @@ draw_rubber_cube:
 
     ; Determine historical frame to use for this line.
     ldr r0, rubber_cube_frame   ; start simple = frame - Y
-    sub r0, r0, r8, lsl #16     ; or lsl #15 to use Y/2
+    sub r0, r0, r8, lsl #RUBBER_CUBE_DELAY_SHIFT     ; or lsl #15 to use Y/2
     bic r0, r0, #0xff000000
     mov r0, r0, lsr #16         ; frame [8.0]
 
@@ -175,6 +176,7 @@ draw_rubber_cube:
     ; Get number of edges and face colour word.
     ldmia r7!, {r2, r9}
 
+    sub r2, r2, #1              ; number edges remaining.
     mov r1, #0xff00             ; track (xs,xe) span.
 
     ; For each edge in the visible face.
@@ -204,13 +206,16 @@ draw_rubber_cube:
     mov r1, r1, lsl #15             ; shift x value to upper 16 bits.
     orr r1, r1, r3, lsr #16         ; mask integer portion into lower bits.
 
-    ; Can't terminate after two matching edges in the face because
-    ; we need to walk through all the edges anyway.
+    bcc .4
+
+    ; Early out if we have had two edge matches.
+    add r12, r12, r2, lsl #4          ; edge_list+=16*remaining edges
+    b .7
 
     ; Next edge.
     .4:
-    subs r2,r2, #1
-    bne .3
+    subs r2, r2, #1
+    bpl .3
 
     cmp r1, #0xff00                   ; no matching edges?
     beq .6
