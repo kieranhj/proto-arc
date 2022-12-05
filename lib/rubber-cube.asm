@@ -73,7 +73,9 @@ update_rubber_cube:
     ; R10 = ptr to rubber cube frame.
     adr r10, rubber_cube_face_list
     add r10, r10, r0, lsl #6    ; frame_ptr = frame_list + frame * 64
-    add r10, r10, #8            ; needs updating to visible faces.
+    .if _POLYGON_STORE_MIN_MAX_Y
+    add r10, r10, #12            ; needs updating to visible faces.
+    .endif
 
     .2:
 
@@ -176,8 +178,7 @@ update_rubber_cube:
     .if _POLYGON_STORE_MIN_MAX_Y
     ldr r0, object_min_y
     ldr r1, object_max_y
-    orr r0, r0, r1, lsl #16
-    str r0, [r10], #4           ; packed max:min for all faces.
+    stmia r10!, {r0, r1}
     .endif
 
     ldr pc, [sp], #4
@@ -209,18 +210,11 @@ draw_rubber_cube:
 
     .if _POLYGON_STORE_MIN_MAX_Y
     ; Track min/max y for object to early out before the face loop.
-    ldr r1, [r7], #4            ; packed max:min
-
-    mov r2, r1, lsr #16         ; max
-    cmp r8, r2                  ; y > max
-    bge .5                      ; skip scanline.
-
-    bic r1, r1, #0xff000000
-    bic r1, r1, #0x00ff0000     ; min
+    ldmia r7!, {r1, r2}
     cmp r8, r1                  ; y < min
     blt .5                      ; skip scanline.
-    .else
-    add r7, r7, #4              ; skip this word!
+    cmp r8, r2                  ; y > max
+    bge .5                      ; skip scanline.
     .endif
 
     ; For each visible face in the frame.
