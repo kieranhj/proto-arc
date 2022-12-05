@@ -2,7 +2,8 @@
 ; Polygon routines.
 ; ============================================================================
 
-.equ POLYGON_EDGE_SIZE, 4*4        ; in bytes.
+.equ _POLYGON_STORE_MIN_MAX_Y, 1     ; for rubber cube - not needed for polygon fill.
+.equ POLYGON_EDGE_SIZE, 4*4         ; in bytes.
 
 ; Compute edge list from a quad specified as indices into a projected vertex array.
 ; Parameters:
@@ -49,6 +50,15 @@ polygon_quad_to_edge_list:
     ; Store edge 0->1 dda data:
     stmia r12!, {r6, r7, r9}    ; [xs, ys, ye]
 
+    .if _POLYGON_STORE_MIN_MAX_Y
+    ldr r0, polygon_min_y
+    cmp r7, r0
+    strlt r7, polygon_min_y
+    ldr r0, polygon_max_y
+    cmp r9, r0
+    strgt r9, polygon_max_y
+    .endif
+
     ; Compute m = (xe-xs) / (ye-ys) for edge 0->1
     sub r0, r8, r6              ; xs = xe-xs
     mov r1, r1, asl #16         ; (ye-ys) [16.16]
@@ -84,6 +94,15 @@ polygon_quad_to_edge_list:
     eor r9, r7, r9
     eor r7, r7, r9
     .3:
+
+    .if _POLYGON_STORE_MIN_MAX_Y
+    ldr r0, polygon_min_y
+    cmp r7, r0
+    strlt r7, polygon_min_y
+    ldr r0, polygon_max_y
+    cmp r9, r0
+    strgt r9, polygon_max_y
+    .endif
 
     ; Store edge 1->2 dda data:
     stmia r12!, {r6, r7, r9}    ; [xs, ys, ye]
@@ -123,6 +142,15 @@ polygon_quad_to_edge_list:
     eor r7, r7, r9
     .5:
 
+    .if _POLYGON_STORE_MIN_MAX_Y
+    ldr r0, polygon_min_y
+    cmp r7, r0
+    strlt r7, polygon_min_y
+    ldr r0, polygon_max_y
+    cmp r9, r0
+    strgt r9, polygon_max_y
+    .endif
+
     ; Store edge 2->3 dda data:
     stmia r12!, {r6, r7, r9}    ; [xs, ys, ye]
 
@@ -158,6 +186,15 @@ polygon_quad_to_edge_list:
     eor r9, r7, r9
     eor r7, r7, r9
     .7:
+
+    .if _POLYGON_STORE_MIN_MAX_Y
+    ldr r0, polygon_min_y
+    cmp r7, r0
+    strlt r7, polygon_min_y
+    ldr r0, polygon_max_y
+    cmp r9, r0
+    strgt r9, polygon_max_y
+    .endif
 
     ; Store edge 3->0 dda data:
     stmia r12!, {r6, r7, r9}    ; [xs, ys, ye]
