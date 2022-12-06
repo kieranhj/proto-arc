@@ -247,10 +247,9 @@ draw_rubber_cube:
     cmp r8, r5
     bge .4
 
-    ;     Compute x = xs + m * (y - ys)
-    sub r4, r8, r4              ; y-ys       [8.0]
-    mul r4, r6, r4              ; (y-ys) * m [8.0] * [8.16] = [16.16]
-    add r3, r3, r4              ; x = xs + m * (y - ys) [16.16]
+    ; Compute edge intersection with scanline: x = xs + m * (y - ys)
+    sub r4, r8, r4              ; y - ys                 [8.0]
+    mla r3, r6, r4, r3          ; x = xs + (y - ys) * m  [8.0] * [8.16] = [16.16]
 
     ; Clip span
     cmp r3, #0                  ; off left hand side of screen? (x<0)
