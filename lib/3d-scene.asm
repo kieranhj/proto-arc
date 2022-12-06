@@ -48,7 +48,7 @@ camera_pos:
 ; TODO: Camera rotation/direction/look at?
 
 object_pos:
-    VECTOR3 0.0, 0.0, 32.0
+    VECTOR3 0.0, 0.0, 16.0
 
 object_rot:
     VECTOR3 0.0, 0.0, 0.0

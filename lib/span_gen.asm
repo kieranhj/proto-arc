@@ -5,6 +5,7 @@
 ; ============================================================================
 
 .equ MAXSPAN, Screen_Width
+.equ _SPAN_GEN_MULTI_WORD, 1
 
 gen_code_pointers_p:
 	.long gen_code_pointers
@@ -12,10 +13,10 @@ gen_code_pointers_p:
 ; Registers used during span plotting functions.
 ; r0 = not used
 ; r1 = X end (in pixels)
-; r2 = not used [typically X start (in pixels)]
+; r2 = not used [typically X start (in pixels)] <= colour word
 ; r3 = temp [word read from screen]
-; r4 = not used
-; r5 = not used
+; r4 = not used <= colour word
+; r5 = not used <= colour word
 ; r6 = temp [construct word to write]
 ; r7 = not used
 ; r8 = not used [typically Y rasterline for outer loop]
@@ -203,9 +204,19 @@ gen_same_word_table:
 	.long gen_same_word_7
 	.long gen_same_word_over
 
-gen_main_loop:
+gen_one_word:
 	STR r9, [r10], #4
-gen_main_loop_end:
+gen_one_word_end:
+
+.if _SPAN_GEN_MULTI_WORD
+gen_two_words:
+	stmia r10!, {r5, r9}
+gen_two_words_end:
+
+gen_four_words:
+	stmia r10!, {r2, r4, r5, r9}
+gen_four_words_end:
+.endif
 
 ; screen=abcdefgh
 ; colour=iiiiiiii
@@ -346,15 +357,37 @@ gen_code_no_offset_loop:
 	CMP r2, #8
 	BCC gen_code_last_word
 
-	ADRL r2, gen_main_loop
-	ADRL r3, gen_main_loop_end
+.if _SPAN_GEN_MULTI_WORD
+	cmp r2, #32
+	blt .1
+	; four words = 32 pixels
+	adr r3, gen_four_words
+	ldr r4, [r3]
+	str r4, [r12], #4
+	add r5, r5, #32
+	sub r2, r2, #32
+.1:
+	cmp r2, #16
+	blt .2
+	; two words = 16 pixels
+	adr r3, gen_two_words
+	ldr r4, [r3]
+	str r4, [r12], #4
+	add r5, r5, #16
+	sub r2, r2, #16
+.2:
+	cmp r2, #8
+	blt gen_code_last_word
+.endif
+	ADRL r2, gen_one_word
+	ADRL r3, gen_one_word_end
 gen_code_main_loop_copy:
 	LDR r4, [r2], #4
 	STR r4, [r12], #4
 	CMP r2, r3
 	BNE gen_code_main_loop_copy
-
 	ADD r5, r5, #8
+
 	B gen_code_no_offset_loop
 
 gen_code_last_word:

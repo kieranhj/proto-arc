@@ -217,7 +217,7 @@ draw_rubber_cube:
     bge .5                      ; skip scanline.
     .endif
 
-    ; For each visible face in the frame.
+    ; For each visible face in the frame [r0]
     .2:
     ; Get number of edges and face colour word.
     ldmia r7!, {r2, r9}
@@ -234,7 +234,7 @@ draw_rubber_cube:
     .endif
 
     sub r2, r2, #1              ; number edges remaining.
-    mov r1, #0xff00             ; track (xs,xe) span.
+    mov r1, #0x8000             ; track (xs,xe) span.
 
     ; For each edge in the visible face.
     .3:
@@ -259,23 +259,21 @@ draw_rubber_cube:
     ldrgt r3, polygon_clip_right_side       ; clamp right
 
     ; Keep track of span (xs, xe)
-    movs r1, r1, lsl #1             ; shift counting bit into carry.
-    mov r1, r1, lsl #15             ; shift x value to upper 16 bits.
-    orr r1, r1, r3, lsr #16         ; mask integer portion into lower bits.
-
-    bcc .4
+    movs r1, r1, lsl #1         ; shift counting bit into carry.
+    mov r1, r1, lsl #15         ; shift x value to upper 16 bits.
+    orr r1, r1, r3, lsr #16     ; mask integer portion into lower bits.
 
     ; Early out if we have had two edge matches.
-    add r12, r12, r2, lsl #4        ; edge_list+=16*remaining edges
-    b .7
+    addcs r12, r12, r2, lsl #4  ; edge_list+=16*remaining edges
+    bcs .7
 
     ; Next edge.
     .4:
-    subs r2, r2, #1
+    subs r2, r2, #1             ; remaining edges
     bpl .3
 
-    cmp r1, #0xff00                 ; no matching edges?
-    beq .6                          ; skip plot.
+    cmp r1, #0x8000             ; no matching edges?
+    beq .6                      ; skip plot.
 
     .7:
     ; Plot span for face.
@@ -291,19 +289,28 @@ draw_rubber_cube:
     eorlt r1, r1, r2            ; swap x1, x2
 
     sub r1, r1, #1              ; omit last pixel for polygon plot.
-    subs r3, r1, r2             ; length of span
+    subs r4, r1, r2             ; length of span
     bmi .6                      ; skip if no pixels.
 
-	mov r4, r2, lsr #3          ; xs DIV 8
-	add r10, r11, r4, lsl #2    ; ptr to start word
+	mov r3, r2, lsr #3          ; xs DIV 8
+    ; Can compute r10 from screen_addr+r8 if we have to load it.
+	add r10, r11, r3, lsl #2    ; ptr to start word
 
-    and r4, r2, #7              ; x start offset [0-7] pixel
-    add r4, r4, r3, lsl #3      ; + span length * 8
+    and r3, r2, #7              ; x start offset [0-7] pixel
+    add r3, r3, r4, lsl #3      ; + span length * 8
     adr lr, .6                  ; link address.
 	ldr r6, gen_code_pointers_p
-    ; Uses: r1, r3, ,r6, r10, r11.
+    ; Uses: r1, r3, r6, r9, r10, r11.
+
+    .if _SPAN_GEN_MULTI_WORD
+    ; r2, r4, r5, r9 as colour words when using multi-word span plot.
+    mov r2, r9
+    mov r4, r9
+    mov r5, r9
+    .endif
+
     ; Preserve: r0 (num faces), r7 (face list), r12 (edge list), r8 (y)
-    ldr pc, [r6, r4, lsl #2]    ; jump to plot function.
+    ldr pc, [r6, r3, lsl #2]    ; jump to plot function.
 
     .6:
 
