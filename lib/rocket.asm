@@ -118,8 +118,8 @@ rocket_set_audio_playing:
     mov pc, lr
 
 rocket_get_sync_time:
-    ldr r2, podule3_vsync_count
-    ldr r0, [r2]
+    ldr r0, podule3_vsync_count
+    ldr r0, [r0]
     mov pc, lr
 
 rocket_set_sync_time:

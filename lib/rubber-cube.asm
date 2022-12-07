@@ -32,6 +32,24 @@ init_rubber_cube:
 update_rubber_cube:
     str lr, [sp, #-4]!
 
+    .if _ENABLE_ROCKET
+    mov r0, #0
+    bl rocket_sync_get_val
+    str r1, object_pos+0
+
+    mov r0, #1
+    bl rocket_sync_get_val
+    str r1, object_pos+4
+
+    mov r0, #2
+    bl rocket_sync_get_val
+    str r1, object_pos+8
+
+    mov r0, #6
+    bl rocket_sync_get_val
+    str r1, rubber_cube_line_delta
+    .endif
+
     ; Rotate the object, transform verts & normals, update scene vars.
     bl update_3d_scene
 
@@ -74,7 +92,7 @@ update_rubber_cube:
     adr r10, rubber_cube_face_list
     add r10, r10, r0, lsl #6    ; frame_ptr = frame_list + frame * 64
     .if _POLYGON_STORE_MIN_MAX_Y
-    add r10, r10, #12            ; needs updating to visible faces.
+    add r10, r10, #12           ; needs updating to visible faces.
     .endif
 
     .2:
@@ -194,7 +212,15 @@ draw_rubber_cube:
 
     ; Determine historical frame to use for this line.
     ldr r0, rubber_cube_frame   ; start simple = frame - Y
+
+    .if _ENABLE_ROCKET
+    ldr r1, rubber_cube_line_delta
+    mul r1, r8, r1
+    sub r0, r0, r1
+    .else
     sub r0, r0, r8, lsl #RUBBER_CUBE_DELAY_SHIFT     ; or lsl #15 to use Y/2
+    .endif
+
     bic r0, r0, #0xff000000
     mov r0, r0, lsr #16         ; frame [8.0]
 
@@ -336,6 +362,11 @@ draw_rubber_cube:
 rubber_cube_frame:
     .long 0
 
+rubber_cube_line:
+    .long 0
+
+rubber_cube_line_delta:
+    .long 0
 
 object_min_y:
     .long 0

@@ -161,18 +161,36 @@ update_3d_scene:
     bne .2
 
     ; Update any scene vars, camera, object position etc. (Rocket?)
+    .if _ENABLE_ROCKET
+    mov r0, #3                      ; track #3
+    bl rocket_sync_get_val
+    .else
+    mov r1, #0                      ; ROTATION_X
+    .endif
     ldr r0, object_rot+0
-    add r0, r0, #0
+    add r0, r0, r1
     bic r0, r0, #0xff000000         ; brads
     str r0, object_rot+0
 
+    .if _ENABLE_ROCKET
+    mov r0, #4                      ; track #4
+    bl rocket_sync_get_val
+    .else
+    mov r1, #MATHS_CONST_QUARTER    ; ROTATION_Y
+    .endif
     ldr r0, object_rot+4
-    add r0, r0, #MATHS_CONST_QUARTER
+    add r0, r0, r1
     bic r0, r0, #0xff000000         ; brads
     str r0, object_rot+4
 
+    .if _ENABLE_ROCKET
+    mov r0, #5                      ; track #5
+    bl rocket_sync_get_val
+    .else
+    mov r1, #MATHS_CONST_QUARTER    ; ROTATION_Z
+    .endif
     ldr r0, object_rot+8
-    add r0, r0, #MATHS_CONST_QUARTER
+    add r0, r0, r1
     bic r0, r0, #0xff000000         ; brads
     str r0, object_rot+8
 

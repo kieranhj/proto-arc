@@ -13,17 +13,17 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo Making !folder...
-set FOLDER="!Proto"
+set FOLDER="!Rubber"
 if EXIST %FOLDER% del /Q "%FOLDER%"
 if NOT EXIST %FOLDER% mkdir %FOLDER%
 
 echo Adding files...
 copy folder\*.* "%FOLDER%\*.*"
 copy build\proto-arc.bin "%FOLDER%\!RunImage,ff8"
-copy data\music\Arc-NIC10.mod "%FOLDER%\Music,001"
+copy "data\music\ne7-square circles.mod" "%FOLDER%\Music,001"
 
 echo Copying !folder...
-set HOSTFS=..\..\Arculator_V2.1_Windows\hostfs
+set HOSTFS=..\arculator\hostfs
 if EXIST "%HOSTFS%\%FOLDER%" del /Q "%HOSTFS%\%FOLDER%"
 if NOT EXIST "%HOSTFS%\%FOLDER%" mkdir "%HOSTFS%\%FOLDER%"
 copy "%FOLDER%\*.*" "%HOSTFS%\%FOLDER%"

@@ -4,7 +4,7 @@
 
 .equ _DEBUG, 1
 .equ _DEBUG_RASTERS, (_DEBUG && 1)
-.equ _ENABLE_MUSIC, 0
+.equ _ENABLE_MUSIC, 1
 .equ _ENABLE_ROCKET, 0
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 1
@@ -84,9 +84,6 @@ main:
 	adrl r0, module_filename
 	mov r1, #0
 	swi QTM_Load
-
-	mov r0, #48
-	swi QTM_SetSampleSpeed
 .endif
 
 	; Clear all screen buffers
@@ -237,10 +234,24 @@ error_noscreenmem:
 
 .if _DEBUG
 debug_write_vsync_count:
-	mov r0, #30
-	swi OS_WriteC
+	str lr, [sp, #-4]!
+	swi OS_WriteI+30			; home text cursor
 
+.if _ENABLE_ROCKET
+	bl rocket_get_sync_time
+.else
+	ldr r0, vsync_delta			; or vsync_count
+.endif
+	adr r1, debug_string
+	mov r2, #8
+	swi OS_ConvertHex4
+
+	adr r0, debug_string
+	swi OS_WriteO
+	
 .if _ENABLE_MUSIC
+	swi OS_WriteI+32			; ' '
+
     ; read current tracker position
     mov r0, #-1
     mov r1, #-1
@@ -254,22 +265,16 @@ debug_write_vsync_count:
 	adr r0, debug_string
 	swi OS_WriteO
 
+	swi OS_WriteI+58			; ':'
+
 	mov r0, r3
 	adr r1, debug_string
 	mov r2, #8
 	swi OS_ConvertHex2
 	adr r0, debug_string
 	swi OS_WriteO
-.else
-	ldr r0, vsync_delta	; rocket_sync_time
-	adr r1, debug_string
-	mov r2, #8
-	swi OS_ConvertHex4
-
-	adr r0, debug_string
-	swi OS_WriteO
 .endif
-	mov pc, r14
+	ldr pc, [sp], #4
 
 debug_string:
 	.skip 16
@@ -463,6 +468,7 @@ palette_pending:
 
 screen_addr:
 	.long 0				; ptr to the current VIDC screen bank being written to.
+
 
 ; ============================================================================
 ; Additional code modules
