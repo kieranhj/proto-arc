@@ -84,21 +84,21 @@ vector_sub:
 ; A.B = |A||B|.cos T
 ;
 vector_dot_product:
-    ldmia r1, {r3-r5}                   ; [s10.10]
+    ldmia r1, {r3-r5}                   ; [s15.16]
 vector_dot_product_load_B:
-    ldmia r2, {r6-r8}                   ; [s10.10]
+    ldmia r2, {r6-r8}                   ; [s15.16]
 
 vector_dot_product_no_load:
-    mov r3, r3, asr #MULTIPLICATION_SHIFT    ; [s10.5]
-    mov r4, r4, asr #MULTIPLICATION_SHIFT    ; [s10.5]
-    mov r5, r5, asr #MULTIPLICATION_SHIFT    ; [s10.5]
-    mov r6, r6, asr #MULTIPLICATION_SHIFT    ; [s10.5]
-    mov r7, r7, asr #MULTIPLICATION_SHIFT    ; [s10.5]
-    mov r8, r8, asr #MULTIPLICATION_SHIFT    ; [s10.5]
+    mov r3, r3, asr #MULTIPLICATION_SHIFT    ; [s15.8]
+    mov r4, r4, asr #MULTIPLICATION_SHIFT    ; [s15.8]
+    mov r5, r5, asr #MULTIPLICATION_SHIFT    ; [s15.8]
+    mov r6, r6, asr #MULTIPLICATION_SHIFT    ; [s15.8]
+    mov r7, r7, asr #MULTIPLICATION_SHIFT    ; [s15.8]
+    mov r8, r8, asr #MULTIPLICATION_SHIFT    ; [s15.8]
 
-    mul r0, r3, r6                      ; r0 = a1 * b1  [s20.10]
-    mla r0, r4, r7, r0                  ;   += a2 * b2  [s20.10]
-    mla r0, r5, r8, r0                  ;   += a3 * b3  [s20.10]
+    mul r0, r3, r6                      ; r0 = a1 * b1  [s30.16] potential overflow
+    mla r0, r4, r7, r0                  ;   += a2 * b2  [s30.16] potential overflow
+    mla r0, r5, r8, r0                  ;   += a3 * b3  [s30.16] potential overflow
 
     mov pc, lr
 
@@ -179,13 +179,13 @@ debug_write_vector:
 ; Computes R0 = A . B where B is a unit vector.
 ;
 vector_dot_product_unit:
-    ldmia r1, {r3-r5}                   ; [s10.10]
-    ldmia r2, {r6-r8}                   ; [s1.10]
+    ldmia r1, {r3-r5}                   ; [s15.16]
+    ldmia r2, {r6-r8}                   ; [s1.16]
 
-    mul r0, r3, r6                      ; r0 = a1 * b1  [s10.20]
-    mla r0, r4, r7, r0                  ;   += a2 * b2  [s10.20]
-    mla r0, r5, r8, r0                  ;   += a3 * b3  [s10.20]
+    mul r0, r3, r6                      ; r0 = a1 * b1  [s16.32] overflow!
+    mla r0, r4, r7, r0                  ;   += a2 * b2  [s16.32] overflow!
+    mla r0, r5, r8, r0                  ;   += a3 * b3  [s16.32] overflow!
 
-    mov r0, r0, asr #PRECISION_BITS     ; [s10.10]
+    mov r0, r0, asr #PRECISION_BITS     ; [s15.24]
     mov pc, lr
 .endif

@@ -294,27 +294,27 @@ matrix_multiply:
 ; Compute B = M.A where M is a unit matrix (all elements [-1.0,+1.0])
 ;
 unit_matrix_multiply_vector:
-    ldmia r0!, {r3-r5}                  ; [ a b c ]   [s1.10]
-    ldmia r1, {r6-r8}                   ; [ x y z ]   [s10.10]
+    ldmia r0!, {r3-r5}                  ; [ a b c ]   [s1.16]
+    ldmia r1, {r6-r8}                   ; [ x y z ]   [s15.16]
 
-    mul r9, r3, r6                      ; r9 = a * x  [s10.20]
-    mla r9, r4, r7, r9                  ;   += b * y  [s10.20]
-    mla r9, r5, r8, r9                  ;   += c * z  [s10.20]
-    mov r9, r9, asr #PRECISION_BITS     ; [s10.10]
+    mul r9, r3, r6                      ; r9 = a * x  [s30.32] overflow!
+    mla r9, r4, r7, r9                  ;   += b * y  [s30.32] overflow!
+    mla r9, r5, r8, r9                  ;   += c * z  [s30.32] overflow!
+    mov r9, r9, asr #PRECISION_BITS     ; [s15.16]
     str r9, [r2, #0]                    ; vectorB[x] = r9
 
-    ldmia r0!, {r3-r5}                  ; [ d e f ]   [s1.10]
-    mul r9, r3, r6                      ; r9 = d * x  [s10.20]
-    mla r9, r4, r7, r9                  ;   += e * y  [s10.20]
-    mla r9, r5, r8, r9                  ;   += f * z  [s10.20]
-    mov r9, r9, asr #PRECISION_BITS     ; [s10.10]
+    ldmia r0!, {r3-r5}                  ; [ d e f ]   [s1.16]
+    mul r9, r3, r6                      ; r9 = d * x  [s30.32] overflow!
+    mla r9, r4, r7, r9                  ;   += e * y  [s30.32] overflow!
+    mla r9, r5, r8, r9                  ;   += f * z  [s30.32] overflow!
+    mov r9, r9, asr #PRECISION_BITS     ; [s15.16]
     str r9, [r2, #4]                    ; vectorB[y] = r9
 
-    ldmia r0!, {r3-r5}                  ; [ g h i ]   [s1.10]
-    mul r9, r3, r6                      ; r9 = g * x  [s10.20]
-    mla r9, r4, r7, r9                  ;   += h * y  [s10.20]
-    mla r9, r5, r8, r9                  ;   += i * z  [s10.20]
-    mov r9, r9, asr #PRECISION_BITS     ; [s10.10]
+    ldmia r0!, {r3-r5}                  ; [ g h i ]   [s1.16]
+    mul r9, r3, r6                      ; r9 = g * x  [s30.32] overflow!
+    mla r9, r4, r7, r9                  ;   += h * y  [s30.32] overflow!
+    mla r9, r5, r8, r9                  ;   += i * z  [s30.32] overflow!
+    mov r9, r9, asr #PRECISION_BITS     ; [s15.16]
     str r9, [r2, #8]                    ; vectorB[z] = r9
 
     mov pc, lr

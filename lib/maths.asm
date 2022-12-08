@@ -12,20 +12,21 @@
 .equ MATHS_CONST_1, (1<<PRECISION_BITS)
 
 ; General notes.
-;  Say s10.10, then lose 5 bits of precision at multiplication?
-;  Max value 0x1fffff >> 5 = 0xffff. Squared 0xffff * 0xffff = 0xfffe0001
-;  Allows coordinates that are [-1024, +1023] with accuracy ~0.03
-;  
-;  Normalised vector in s1.10. [-1.0, +1.0]
-;   +1.0 => 0x400 and -1.0 => 0xc00 (or really 0xfffffc00)
+;  Typically assume that all fixed-point values are [s15.16]
+;  So 1 sign bit, 15 bits of integer [0-32767] and 16 factional bits [~0.00002]
 ;
-;  TODO: Decide on precision required for demos and check with Sarah!
-;        At some point you just scale up the coordinates so they're in range?
-;        Might need more precision at the lower end than 10 bits if we're
-;        dealing with lots of vectors that are normalised / rotations.
+;  In practice values are assumed to be more like [s7.8] for multiplication
+;  and division accuracy. So 1 sign bit, 7 bits of integer [0-127] and 8
+;  fractional bits [~0.004].
 ;
-; TODO: Update all this to s15.16.
-
+; When multiplying we shift >> 8 to avoid overflow, so:
+;     (a * b) = (a >> 8) * (b >> 8)
+;
+; When dividing we shift the numerator << 8 and the divisor >> 8, so:
+;     (a / b) = (a << 8) / (b >> 8)
+; Or if using a reciprocal table in [0.16]:
+;     (a / b) = a * (1 / b) = ((a >> 8) * reciprocal(b)) >> 8
+;
 maths_init:
     str lr, [sp, #-4]!
     .if _MAKE_SINUS_TABLE
