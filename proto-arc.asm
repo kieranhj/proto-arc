@@ -5,11 +5,11 @@
 .equ _DEBUG, 1
 .equ _DEBUG_RASTERS, (_DEBUG && 1)
 .equ _ENABLE_MUSIC, 1
-.equ _ENABLE_ROCKET, 0
+.equ _ENABLE_ROCKET, 1
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 1
 
-.equ _RUBBER_CUBE, 1
+.equ _RUBBER_CUBE, 0
 
 .equ Screen_Banks, 3
 .equ Screen_Mode, 9
@@ -127,12 +127,12 @@ main:
 	swi OS_AddToVector
 
 	; LATE INITALISATION HERE!
-	adr r2, grey_palette
-	;bl palette_set_block
-
 	bl init_3d_scene
 	.if _RUBBER_CUBE
 	bl init_rubber_cube
+	.else
+	adr r2, grey_palette
+	bl palette_set_block
 	.endif
 
 	; Sync tracker.

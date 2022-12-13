@@ -5,7 +5,7 @@
 ; ============================================================================
 
 .equ MAXSPAN, Screen_Width
-.equ _SPAN_GEN_MULTI_WORD, 1
+.equ _SPAN_GEN_MULTI_WORD, (_RUBBER_CUBE && 1)
 
 gen_code_pointers_p:
 	.long gen_code_pointers

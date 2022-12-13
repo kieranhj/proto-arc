@@ -42,7 +42,7 @@
 
 
 camera_pos:
-    VECTOR3 0.0, 0.0, -80.0
+    VECTOR3 0.0, 0.0, -40.0
 
 ; Note camera is fixed to view down +z axis.
 ; TODO: Camera rotation/direction/look at?
@@ -84,6 +84,25 @@ init_3d_scene:
 
 update_3d_scene:
     str lr, [sp, #-4]!
+
+    .if _ENABLE_ROCKET
+    mov r0, #0
+    bl rocket_sync_get_val
+    str r1, object_pos+0
+
+    mov r0, #1
+    bl rocket_sync_get_val
+    str r1, object_pos+4
+
+    mov r0, #2
+    bl rocket_sync_get_val
+    str r1, object_pos+8
+
+    mov r0, #6
+    bl rocket_sync_get_val
+    str r1, rubber_cube_line_delta
+    .endif
+
     .if 1
     ; Create rotation matrix as object transform.
     adr r2, temp_matrix_1
@@ -325,7 +344,9 @@ draw_3d_scene:
 
     ; Simple directional lighting from -z.
     ldr r4, [r6, #8]            ; face_normal.z
-    rsb r4, r4, #0              ; make positive. [0.16]
+    cmp r4, #0
+    rsbmi r4, r4, #0            ; make positive. [0.16]
+                                ; otherwise it should be v small.
     mov r4, r4, lsr #12         ; [0.4]
     cmp r4, #0x10
     movge r4, #0x0f             ; clamp to [0-15]
@@ -425,22 +446,23 @@ project_to_screen:
     mov r1, r5                  ; (z-cz)
     bl divide                   ; (x-cx)/(z-cz)
                                 ; [0.16]
-    mov r7, #VIEWPORT_SCALE>>MULTIPLICATION_SHIFT     ; [16.8]
-    mul r6, r0, r7              ; [8.24]        ; overflow?
-    mov r6, r6, asr #8          ; [8.16]
+    mov r7, #VIEWPORT_SCALE>>12 ; [16.4]
+    mul r6, r0, r7              ; [12.20]
+    mov r6, r6, asr #4          ; [12.16]
     mov r8, #VIEWPORT_CENTRE_X  ; [16.16]
     add r6, r6, r8
 
-    ; vp_centre_y + vp_scale * (y-cy) / (z-cz)
+    ; Flip Y axis as we want +ve Y to point up the screen!
+    ; vp_centre_y - vp_scale * (y-cy) / (z-cz)
     mov r0, r4                  ; (y-cy)
     mov r1, r5                  ; (z-cz)
     bl divide                   ; (y-cy)/(z-cz)
                                 ; [0.16]
-    mov r7, #VIEWPORT_SCALE>>MULTIPLICATION_SHIFT     ; [16.8]
-    mul r1, r0, r7              ; [8.24]        ; overflow?
-    mov r1, r1, asr #8          ; [8.16]
+    mov r7, #VIEWPORT_SCALE>>12 ; [16.4]
+    mul r1, r0, r7              ; [12.20]
+    mov r1, r1, asr #4          ; [12.16]
     mov r8, #VIEWPORT_CENTRE_Y  ; [16.16]
-    add r1, r1, r8              ; [16.16]
+    sub r1, r8, r1              ; [16.16]
 
     mov r0, r6
     ldr pc, [sp], #4
@@ -465,14 +487,14 @@ object_num_verts:
     .long 8
 
 object_verts:
-    VECTOR3 -32.0,  32.0, -32.0
-    VECTOR3  32.0,  32.0, -32.0
-    VECTOR3  32.0, -32.0, -32.0
-    VECTOR3 -32.0, -32.0, -32.0
-    VECTOR3 -32.0,  32.0,  32.0
-    VECTOR3  32.0,  32.0,  32.0
-    VECTOR3  32.0, -32.0,  32.0
-    VECTOR3 -32.0, -32.0,  32.0
+    VECTOR3 -16.0,  16.0, -16.0
+    VECTOR3  16.0,  16.0, -16.0
+    VECTOR3  16.0, -16.0, -16.0
+    VECTOR3 -16.0, -16.0, -16.0
+    VECTOR3 -16.0,  16.0,  16.0
+    VECTOR3  16.0,  16.0,  16.0
+    VECTOR3  16.0, -16.0,  16.0
+    VECTOR3 -16.0, -16.0,  16.0
 
 object_num_faces:
     .long 6

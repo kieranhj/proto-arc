@@ -32,24 +32,6 @@ init_rubber_cube:
 update_rubber_cube:
     str lr, [sp, #-4]!
 
-    .if _ENABLE_ROCKET
-    mov r0, #0
-    bl rocket_sync_get_val
-    str r1, object_pos+0
-
-    mov r0, #1
-    bl rocket_sync_get_val
-    str r1, object_pos+4
-
-    mov r0, #2
-    bl rocket_sync_get_val
-    str r1, object_pos+8
-
-    mov r0, #6
-    bl rocket_sync_get_val
-    str r1, rubber_cube_line_delta
-    .endif
-
     ; Rotate the object, transform verts & normals, update scene vars.
     bl update_3d_scene
 

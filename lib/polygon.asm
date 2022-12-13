@@ -2,7 +2,7 @@
 ; Polygon routines.
 ; ============================================================================
 
-.equ _POLYGON_STORE_MIN_MAX_Y, 1     ; for rubber cube - not needed for polygon fill.
+.equ _POLYGON_STORE_MIN_MAX_Y, (_RUBBER_CUBE && 1)     ; for rubber cube - not needed for polygon fill.
 .equ POLYGON_EDGE_SIZE, 4*4         ; in bytes.
 
 ; Compute edge list from a quad specified as indices into a projected vertex array.
@@ -261,6 +261,8 @@ polygon_rasterise_edge:
     cmp r4, r5                  ; y < ye
     blt .1
 .3:
+    cmp r4, #Screen_Height
+    movgt r4, #Screen_Height
 
     ; Track max y for optimisation.
     ldr r0, polygon_max_y
@@ -287,12 +289,10 @@ polygon_plot_quad:
     bl polygon_quad_to_edge_list
     ; R11=number of edges.
 
-    ; Shouldn't happen unless the poly is degenerate?
-    .if _DEBUG
+    ; This can happen if the coordinates are projected to the same
+    ; integer scanline.
     cmp r11, #0
-    adreq R0,polyerror          ; and flag an error
-    swieq OS_GenerateError      ; when necessary
-    .endif
+    ldreq pc, [sp], #4
 
     ; Rasterise each edge in the list into the span table.
     adr r12, polygon_edge_list
