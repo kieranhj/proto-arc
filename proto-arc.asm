@@ -9,7 +9,7 @@
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 1
 
-.equ _RUBBER_CUBE, 0
+.equ _RUBBER_CUBE, 1
 
 .equ Screen_Banks, 3
 .equ Screen_Mode, 9
@@ -237,7 +237,7 @@ debug_write_vsync_count:
 	str lr, [sp, #-4]!
 	swi OS_WriteI+30			; home text cursor
 
-.if _ENABLE_ROCKET
+.if _ENABLE_ROCKET && 0
 	bl rocket_get_sync_time
 .else
 	ldr r0, vsync_delta			; or vsync_count

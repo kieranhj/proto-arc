@@ -97,10 +97,6 @@ update_3d_scene:
     mov r0, #2
     bl rocket_sync_get_val
     str r1, object_pos+8
-
-    mov r0, #6
-    bl rocket_sync_get_val
-    str r1, rubber_cube_line_delta
     .endif
 
     .if 1

@@ -2,11 +2,12 @@
 ; Rubber cube.
 ; ============================================================================
 
-.equ RUBBER_CUBE_LIGHTING, 0
-.equ RUBBER_CUBE_DELAY_SHIFT, 0    ; 16=-Y, 15=-Y/2, 0=none
+.equ RUBBER_CUBE_LIGHTING, 0        ; TODO: Use RasterMan to do this per line.
+.equ RUBBER_CUBE_DELAY_SHIFT, 0     ; 16=-Y, 15=-Y/2, 0=none
+.equ RUBBER_CUBE_SPLIT, 1
 
 ; WARNING: Code must change if these do!
-.equ RUBBER_CUBE_MAX_FRAMES, 256
+.equ RUBBER_CUBE_MAX_FRAMES, 1024
 .equ RUBBER_CUBE_FACES_SIZE, 64
 
 
@@ -22,7 +23,7 @@ init_rubber_cube:
     ; Update the rubber cube frame.
     ldr r0, rubber_cube_frame
     add r0, r0, #MATHS_CONST_1
-    bics r0, r0, #0xff000000           ; assumes RUBBER_CUBE_MAX_FRAMES=256
+    bics r0, r0, #0xfc000000           ; assumes RUBBER_CUBE_MAX_FRAMES=1024
     str r0, rubber_cube_frame
     bne .1
 
@@ -34,6 +35,16 @@ update_rubber_cube:
 
     ; Rotate the object, transform verts & normals, update scene vars.
     bl update_3d_scene
+
+    .if _ENABLE_ROCKET
+    mov r0, #6
+    bl rocket_sync_get_val
+    str r1, rubber_cube_line_delta
+
+    mov r0, #7
+    bl rocket_sync_get_val
+    str r1, rubber_cube_split_delta
+    .endif
 
     ; Project vertices to screen.
     adr r2, transformed_verts
@@ -66,12 +77,12 @@ update_rubber_cube:
     ; R12 = ptr to edge list buffer for frame.
     ldr r0, rubber_cube_frame
     mov r0, r0, lsr #16         ; frame [8.0]
-    adr r12, rubber_cube_edge_list
+    ldr r12, p_rubber_cube_edge_list
     add r12, r12, r0, lsl #7    ; edge_list + frame * 128
     add r12, r12, r0, lsl #6    ;           + frame * 64  = &edge_list[frame]
     
     ; R10 = ptr to rubber cube frame.
-    adr r10, rubber_cube_face_list
+    ldr r10, p_rubber_cube_face_list
     add r10, r10, r0, lsl #6    ; frame_ptr = frame_list + frame * 64
     .if _POLYGON_STORE_MIN_MAX_Y
     add r10, r10, #12           ; needs updating to visible faces.
@@ -123,7 +134,9 @@ update_rubber_cube:
     add r2, r2, r11, lsl #3
     add r2, r2, r11, lsl #2     ; face_normal + face_index*12
     ldr r0, [r2, #8]            ; face_normal.z
-    rsb r0, r0, #0              ; make positive. [0.16]
+    cmp r0, #0
+    rsbmi r0, r0, #0            ; make positive. [0.16]
+                                ; otherwise it should be v small.
     mov r0, r0, lsr #12         ; [0.4]
     cmp r0, #0x10
     movge r0, #0x0f             ; clamp to [0-15]
@@ -171,7 +184,7 @@ update_rubber_cube:
     ldr r0, rubber_cube_frame
     mov r0, r0, lsr #16         ; frame [8.0]
     ; R10 = ptr to rubber cube frame.
-    adr r10, rubber_cube_face_list
+    ldr r10, p_rubber_cube_face_list
     add r10, r10, r0, lsl #6    ; frame_list + frame * 64
     str r6, [r10], #4           ; write number of visible faces.
 
@@ -183,6 +196,11 @@ update_rubber_cube:
 
     ldr pc, [sp], #4
 
+p_rubber_cube_face_list:
+    .long rubber_cube_face_list
+
+p_rubber_cube_edge_list:
+    .long rubber_cube_edge_list
 
 ; R11 = screen address
 draw_rubber_cube:
@@ -195,6 +213,12 @@ draw_rubber_cube:
     ; Determine historical frame to use for this line.
     ldr r0, rubber_cube_frame   ; start simple = frame - Y
 
+    .if RUBBER_CUBE_SPLIT
+    tst r8, #1
+    ldreq r1, rubber_cube_split_delta
+    subeq r0, r0, r1
+    .endif
+
     .if _ENABLE_ROCKET
     ldr r1, rubber_cube_line_delta
     mul r1, r8, r1
@@ -203,16 +227,16 @@ draw_rubber_cube:
     sub r0, r0, r8, lsl #RUBBER_CUBE_DELAY_SHIFT     ; or lsl #15 to use Y/2
     .endif
 
-    bic r0, r0, #0xff000000
+    bic r0, r0, #0xfc000000
     mov r0, r0, lsr #16         ; frame [8.0]
 
     ; Locate ptr to edges for this frame.
-    adr r12, rubber_cube_edge_list
+    ldr r12, p_rubber_cube_edge_list
     add r12, r12, r0, lsl #7    ; edge_list + frame * 128
     add r12, r12, r0, lsl #6    ;           + frame * 64  = &edge_list[frame]
 
     ; Locate ptr to frame data.
-    adr r7, rubber_cube_face_list
+    ldr r7, p_rubber_cube_face_list
     add r7, r7, r0, lsl #6      ; frame_ptr = frame_list + frame * 64
     ldr r0, [r7], #4            ; visible faces
 
@@ -335,7 +359,7 @@ draw_rubber_cube:
     ; Update the rubber cube frame.
     ldr r0, rubber_cube_frame
     add r0, r0, #MATHS_CONST_1
-    bic r0, r0, #0xff000000           ; assumes RUBBER_CUBE_MAX_FRAMES=256
+    bic r0, r0, #0xfc000000           ; assumes RUBBER_CUBE_MAX_FRAMES=1024
     str r0, rubber_cube_frame
 
     ldr pc, [sp], #4
@@ -350,27 +374,11 @@ rubber_cube_line:
 rubber_cube_line_delta:
     .long 0
 
+rubber_cube_split_delta:
+    .long 0
+
 object_min_y:
     .long 0
 
 object_max_y:
     .long 0
-
-; For each frame:               [MAX_FRAMES]
-;  long number_of_faces         (4)
-;  long object_min_max_y        (4) max in high word, min in low word.
-;  For each face:               [MAX_VISIBLE_FACES]
-;   long number_of_edges         (4)
-;   long face_colour_word        (4) as written to screen.
-;   long face_min_y              (4)
-;   long face_max_y              (4)
-
-rubber_cube_face_list:
-    .skip RUBBER_CUBE_MAX_FRAMES * RUBBER_CUBE_FACES_SIZE
-
-; WARNING: Code must change if these do!
-; Actually doesn't need to be a circular buffer, we preallocate the max
-; size per frame, so edge_size * max_edges * max_faces = 192.
-rubber_cube_edge_list:
-    .skip POLYGON_EDGE_SIZE * OBJ_MAX_EDGES_PER_FACE * OBJ_MAX_VISIBLE_FACES * RUBBER_CUBE_MAX_FRAMES
-    ; 16 * 4 * 3 * 256 = 192 * 256
