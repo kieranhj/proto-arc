@@ -10,6 +10,7 @@
 .equ _SYNC_EDITOR, 1
 
 .equ _RUBBER_CUBE, 1
+.equ _DITHER, 1
 
 .equ Screen_Banks, 3
 .equ Screen_Mode, 9
@@ -512,6 +513,10 @@ grey_palette:
 	.long 0x00DDDDDD
 	.long 0x00EEEEEE
 	.long 0x00FFFFFF
+
+.if _DITHER
+.include "lib/dither.asm"
+.endif
 
 palette_osword_block:
     .skip 8

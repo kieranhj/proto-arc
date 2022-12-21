@@ -2,7 +2,7 @@
 ; Rubber cube.
 ; ============================================================================
 
-.equ RUBBER_CUBE_LIGHTING, 0        ; TODO: Use RasterMan to do this per line.
+.equ RUBBER_CUBE_LIGHTING, 1        ; TODO: Use RasterMan to do this per line.
 .equ RUBBER_CUBE_DELAY_SHIFT, 0     ; 16=-Y, 15=-Y/2, 0=none
 .equ RUBBER_CUBE_SPLIT, 1
 
@@ -137,17 +137,17 @@ update_rubber_cube:
     cmp r0, #0
     rsbmi r0, r0, #0            ; make positive. [0.16]
                                 ; otherwise it should be v small.
-    mov r0, r0, lsr #12         ; [0.4]
-    cmp r0, #0x10
-    movge r0, #0x0f             ; clamp to [0-15]
+    mov r0, r0, lsr #10         ; [0.6]
+    orr r0, r0, r11, lsl #16    ; face index << 16
+    add r0, r0, #0x10000        ; +1
     .else
     add r0, r11, #1             ; colour index = face index+1
-    .endif
 
     ; Convert colour index to colour word.
     orr r0, r0, r0, lsl #4
     orr r0, r0, r0, lsl #8
     orr r0, r0, r0, lsl #16
+    .endif
 
     str r0, [r10], #4           ; colour_word
 
@@ -332,6 +332,22 @@ draw_rubber_cube:
     adr lr, .6                  ; link address.
 	ldr r6, gen_code_pointers_p
     ; Uses: r1, r3, r6, r9, r10, r11.
+
+    .if _DITHER
+    adr r2, dither_0
+    and r4, r8, #0x7            ; scanline & 7
+    add r2, r2, r4, lsl #2      ; select dither line.
+    mov r5, r9, lsl #16         ; 
+    ldr r5, [r2, r5, lsr #11]   ; intensity * 32
+
+    mov r9, r9, lsr #16         ; colour index
+    orr r9, r9, r9, lsl #4
+    orr r9, r9, r9, lsl #8
+    orr r9, r9, r9, lsl #16     ; colour word
+    and r9, r9, r5              ; colour intensity
+
+    ; TODO: Fix up span generated routines for start & end of a word.
+    .endif
 
     .if _SPAN_GEN_MULTI_WORD
     ; r2, r4, r5, r9 as colour words when using multi-word span plot.
