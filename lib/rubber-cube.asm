@@ -3,7 +3,7 @@
 ; ============================================================================
 
 .equ RUBBER_CUBE_LIGHTING, 0        ; TODO: Use RasterMan to do this per line.
-.equ RUBBER_CUBE_DELAY_SHIFT, 0     ; 16=-Y, 15=-Y/2, 0=none
+.equ RUBBER_CUBE_DELAY_SHIFT, 16     ; 16=-Y, 15=-Y/2, 0=none
 .equ RUBBER_CUBE_SPLIT, 1
 
 ; WARNING: Code must change if these do!

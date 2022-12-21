@@ -3,9 +3,9 @@
 ; ============================================================================
 
 .equ _DEBUG, 1
-.equ _DEBUG_RASTERS, (_DEBUG && 1)
+.equ _DEBUG_RASTERS, (_DEBUG && 0)
 .equ _ENABLE_MUSIC, 1
-.equ _ENABLE_ROCKET, 1
+.equ _ENABLE_ROCKET, 0
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 1
 
@@ -80,6 +80,13 @@ main:
 	; LOAD STUFF HERE!
 
 .if _ENABLE_MUSIC
+	; QTM Init.
+	; Required to make QTM play nicely with RasterMan.
+	mov r0, #4
+	mov r1, #-1
+	mov r2, #-1
+	swi QTM_SoundControl
+
 	; Load module
 	adrl r0, module_filename
 	mov r1, #0
@@ -103,6 +110,7 @@ main:
 	ble .1
 
 	; EARLY INITIALISATION HERE! (Tables etc.)
+	bl rasters_init
 	bl maths_init
 	; bl initialise_span_buffer
 
@@ -121,10 +129,12 @@ main:
 	SWI OS_Claim
 
 	; Claim the Event vector
+	.if 1
 	mov r0, #EventV
 	adr r1, event_handler
 	mov r2, #0
 	swi OS_AddToVector
+	.endif
 
 	; LATE INITALISATION HERE!
 	bl init_3d_scene
@@ -149,6 +159,9 @@ main:
 	mov r1, #Event_VSync
 	SWI OS_Byte
 
+	; Fire up the RasterMan!
+	swi RasterMan_Install
+
 main_loop:
 
 	SET_BORDER 0x0000ff	; red
@@ -162,6 +175,10 @@ main_loop:
 	; Really we need something more sophisticated here.
 	; Block only if there's no free buffer to write to.
 
+	; swi RasterMan_Wait
+
+	; Block if we've not even had a vsync since last time - we're >50Hz!
+.if 0
 .if Screen_Banks == 2
 	; Block if there's a buffer pending to be displayed when double buffered.
 	; This means that we overran the previous frame. Triple buffering may
@@ -172,7 +189,6 @@ main_loop:
 	bne .2	
 .endif
 
-	; Block if we've not even had a vsync since last time - we're >50Hz!
 	ldr r1, last_vsync
 .1:
 	ldr r2, vsync_count
@@ -185,6 +201,7 @@ main_loop:
 	.endif
 	str r2, last_vsync
 	str r0, vsync_delta
+.endif
 
 	; R0 = vsync delta since last frame.
 	.if _ENABLE_ROCKET
@@ -215,14 +232,10 @@ main_loop:
 	bl show_screen_at_vsync
 
 	; exit if Escape is pressed
-	MOV r0, #OSByte_ReadKey
-	MOV r1, #IKey_Escape
-	MOV r2, #0xff
-	SWI OS_Byte
-	
-	CMP r1, #0xff
-	CMPEQ r2, #0xff
-	BEQ exit
+	swi RasterMan_ScanKeyboard
+	mov r1, #0xc0c0
+	cmp r0, r1
+	beq exit
 	
 	b main_loop
 
@@ -292,13 +305,14 @@ screen_addr_input:
 
 exit:	
 	; wait for vsync (any pending buffers)
-	mov r0, #19
-	swi OS_Byte
+	swi RasterMan_Wait
+	swi RasterMan_Release
+	swi RasterMan_Wait
 
 .if _ENABLE_MUSIC
 	; disable music
 	mov r0, #0
-	swi QTM_Stop
+	swi QTM_Clear
 .endif
 
 	; disable vsync event
@@ -307,10 +321,12 @@ exit:
 	swi OS_Byte
 
 	; release our event handler
+	.if 1
 	mov r0, #EventV
 	adr r1, event_handler
 	mov r2, #0
 	swi OS_Release
+	.endif
 
 	; release our error handler
 	mov r0, #ErrorV
@@ -327,9 +343,15 @@ exit:
 	ldr r1, scr_bank
 	swi OS_Byte
 
+	; Flush keyboard buffer.
+	mov r0, #15
+	mov r1, #1
+	swi OS_Byte
+
 	SWI OS_Exit
 
 ; R0=event number
+.if 1
 event_handler:
 	cmp r0, #Event_VSync
 	movnes pc, r14
@@ -341,6 +363,7 @@ event_handler:
 	ADD r0, r0, #1
 	STR r0, vsync_count
 
+.if 0
 	; is there a new screen buffer ready to display?
 	LDR r1, buffer_pending
 	CMP r1, #0
@@ -395,17 +418,22 @@ event_handler:
 	TEQP r9, #0    ;Restore old mode
 	MOV r0, r0
 	LDMIA sp!, {r2-r12}
+.endif
+
 	LDMIA sp!, {r0-r1, pc}
+.endif
 
 error_handler:
 	STMDB sp!, {r0-r2, lr}
 	MOV r0, #OSByte_EventDisable
 	MOV r1, #Event_VSync
 	SWI OS_Byte
+.if 0
 	MOV r0, #EventV
 	ADR r1, event_handler
 	mov r2, #0
 	SWI OS_Release
+.endif
 	MOV r0, #ErrorV
 	ADR r1, error_handler
 	MOV r2, #0
@@ -419,10 +447,15 @@ error_handler:
 show_screen_at_vsync:
 	; Show current bank at next vsync
 	ldr r1, scr_bank
+.if 0
 	str r1, buffer_pending
 	; Including its associated palette
 	ldr r1, palette_block_addr
 	str r1, palette_pending
+.else
+	MOV r0, #OSByte_WriteDisplayBank
+	swi OS_Byte
+.endif
 	mov pc, lr
 
 get_next_screen_for_writing:
@@ -480,6 +513,7 @@ screen_addr:
 .include "lib/mode9-screen.asm"
 ;.include "lib/mode9-plot.asm"
 .include "lib/mode9-palette.asm"
+.include "lib/rasters.asm"
 
 .if _ENABLE_ROCKET
 .include "lib/rocket.asm"
@@ -521,6 +555,20 @@ palette_osword_block:
     ; green
     ; blue
     ; (pad)
+
+.align 4
+vidc_table_1:
+	.skip 256*4*4
+
+; TODO: Can we get rid of these?
+vidc_table_2:
+	.skip 256*4*4
+
+vidc_table_3:
+	.skip 256*8*4
+
+memc_table:
+	.skip 256*2*4
 
 .include "lib/tables.asm"
 
