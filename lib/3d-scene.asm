@@ -347,42 +347,11 @@ draw_3d_scene:
     cmp r4, #0x10
     movge r4, #0x0f             ; clamp to [0-15]
 
-    .if 0
-    ; Make the polygon buffer from face indices.
-    adr r8, polygon_buffer
-
-    ldrb r5, [r11, #0]
-    add r7, r10, r5, lsl #3     ; projected_verts + index*8
-    ldmia r7, {r0, r1}          ; x_start, y_start
-    stmia r8!, {r0, r1}
-
-    ldrb r5, [r11, #1]
-    add r7, r10, r5, lsl #3     ; projected_verts + index*8
-    ldmia r7, {r0, r1}          ; x_start, y_start
-    stmia r8!, {r0, r1}
-
-    ldrb r5, [r11, #2]
-    add r7, r10, r5, lsl #3     ; projected_verts + index*8
-    ldmia r7, {r0, r1}          ; x_start, y_start
-    stmia r8!, {r0, r1}
-
-    ldrb r5, [r11, #3]
-    add r7, r10, r5, lsl #3     ; projected_verts + index*8
-    ldmia r7, {r0, r1}          ; x_start, y_start
-    stmia r8!, {r0, r1}
-
-    mov r0, #OBJ_VERTS_PER_FACE
-    adr r1, polygon_buffer
-    stmfd sp!, {r6, r9-r12}
-    bl plot_polygon_span
-    ldmfd sp!, {r6, r9-r12}
-    .else
     mov r2, r10                 ; projected vertex array.
     ldr r3, [r11]               ; quad indices
     stmfd sp!, {r6, r9-r12}
     bl polygon_plot_quad
     ldmfd sp!, {r6, r9-r12}
-    .endif
 
     .3:
     add r6, r6, #VECTOR3_SIZE
