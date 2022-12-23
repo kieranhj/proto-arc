@@ -112,7 +112,9 @@ main:
 	ble .1
 
 	; EARLY INITIALISATION HERE! (Tables etc.)
+	.if _ENABLE_RASTERMAN
 	bl rasters_init
+	.endif
 	bl maths_init
 	; bl initialise_span_buffer
 
@@ -142,10 +144,10 @@ main:
 	bl init_3d_scene
 	.if _RUBBER_CUBE
 	bl init_rubber_cube
-	.else
+	.endif
+
 	adr r2, grey_palette
 	bl palette_set_block
-	.endif
 
 	; Sync tracker.
 	.if _ENABLE_ROCKET
@@ -174,6 +176,9 @@ main_loop:
 	.else
 	bl update_3d_scene
 	.endif
+
+	SET_BORDER 0xffff00	; cyan
+	bl update_scroller
 
 	SET_BORDER 0x000000	; black
 	; Really we need something more sophisticated here.
@@ -234,6 +239,10 @@ main_loop:
 	.else
 	bl draw_3d_scene
 	.endif
+
+	SET_BORDER 0xffff00	; cyan
+	ldr r11, screen_addr
+	bl draw_scroller
 
 	SET_BORDER 0x000000	; black
 	bl show_screen_at_vsync
@@ -527,7 +536,10 @@ screen_addr:
 .include "lib/mode9-screen.asm"
 ;.include "lib/mode9-plot.asm"
 .include "lib/mode9-palette.asm"
+.if _ENABLE_RASTERMAN
 .include "lib/rasters.asm"
+.endif
+.include "lib/scroller.asm"
 
 .if _ENABLE_ROCKET
 .include "lib/rocket.asm"
@@ -544,6 +556,7 @@ module_filename:
 .endif
 
 grey_palette:
+.if 0
 	.long 0x00000000
 	.long 0x00111111
 	.long 0x00222222
@@ -560,6 +573,24 @@ grey_palette:
 	.long 0x00DDDDDD
 	.long 0x00EEEEEE
 	.long 0x00FFFFFF
+.else
+	.long 0x00000000
+	.long 0x000000ff
+	.long 0x0000ff00
+	.long 0x0000ffff
+	.long 0x00ff0000
+	.long 0x00ff00ff
+	.long 0x00ffff00
+	.long 0x00ffffff
+	.long 0x00888888
+	.long 0x00999999
+	.long 0x00AAAAAA
+	.long 0x00BBBBBB
+	.long 0x00CCCCCC
+	.long 0x00DDDDDD
+	.long 0x00EEEEEE
+	.long 0x00FFFFFF
+.endif
 
 palette_osword_block:
     .skip 8

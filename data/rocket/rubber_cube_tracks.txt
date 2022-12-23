@@ -6,3 +6,4 @@ rot_y 0
 rot_z 0
 line_delay 0
 line_split 0
+y_pos 0
