@@ -12,6 +12,7 @@
 .equ OS_Mouse, 0x1c
 .equ OS_ChangeDynamicArea, 0x2a
 .equ OS_GenerateError, 0x2b
+.equ OS_ReadEscapeState, 0x2c
 .equ OS_ReadVduVariables, 0x31
 .equ OS_ReadMonotonicTime, 0x42
 .equ OS_Plot, 0x45

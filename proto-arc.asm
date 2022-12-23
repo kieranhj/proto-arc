@@ -3,11 +3,13 @@
 ; ============================================================================
 
 .equ _DEBUG, 1
-.equ _DEBUG_RASTERS, (_DEBUG && 0)
+.equ _ENABLE_RASTERMAN, 0
 .equ _ENABLE_MUSIC, 1
 .equ _ENABLE_ROCKET, 1
+.equ _SYNC_EDITOR, (_ENABLE_ROCKET && 1)
 .equ _FIX_FRAME_RATE, 1					; useful for !DDT breakpoints
-.equ _SYNC_EDITOR, 1
+
+.equ _DEBUG_RASTERS, (_DEBUG && !_ENABLE_RASTERMAN && 1)
 
 .equ _RUBBER_CUBE, 1
 
@@ -129,7 +131,7 @@ main:
 	SWI OS_Claim
 
 	; Claim the Event vector
-	.if 1
+	.if !_ENABLE_RASTERMAN
 	mov r0, #EventV
 	adr r1, event_handler
 	mov r2, #0
@@ -154,13 +156,15 @@ main:
 	.endif
 	.endif
 
-	; Enable Vsync event
+	; Fire up the RasterMan!
+	.if _ENABLE_RASTERMAN
+	swi RasterMan_Install
+	.else
+	; Enable Vsync 
 	mov r0, #OSByte_EventEnable
 	mov r1, #Event_VSync
 	SWI OS_Byte
-
-	; Fire up the RasterMan!
-	swi RasterMan_Install
+	.endif
 
 main_loop:
 
@@ -175,20 +179,22 @@ main_loop:
 	; Really we need something more sophisticated here.
 	; Block only if there's no free buffer to write to.
 
+	.if _ENABLE_RASTERMAN
 	swi RasterMan_Wait
+	mov r0, #1				; TODO: Ask Steve for RasterMan_GetVsyncCounter.
+	.else
 
 	; Block if we've not even had a vsync since last time - we're >50Hz!
-.if (Screen_Banks == 2 && 0)
+	.if (Screen_Banks == 2 && 0)
 	; Block if there's a buffer pending to be displayed when double buffered.
 	; This means that we overran the previous frame. Triple buffering may
 	; help here. Or not. ;)
-.2:
+	.2:
 	ldr r1, buffer_pending
 	cmp r1, #0
 	bne .2	
-.endif
+	.endif
 
-.if 0
 	ldr r1, last_vsync
 .1:
 	ldr r2, vsync_count
@@ -200,14 +206,12 @@ main_loop:
 	sub r0, r2, r1
 	.endif
 	str r2, last_vsync
+	.endif
+
 	str r0, vsync_delta
-.endif
 
 	; R0 = vsync delta since last frame.
 	.if _ENABLE_ROCKET
-	.if _FIX_FRAME_RATE
-	mov r0, #1
-	.endif
 	bl rocket_update
 	.endif
 
@@ -235,10 +239,15 @@ main_loop:
 	bl show_screen_at_vsync
 
 	; exit if Escape is pressed
+	.if _ENABLE_RASTERMAN
 	swi RasterMan_ScanKeyboard
 	mov r1, #0xc0c0
 	cmp r0, r1
 	beq exit
+	.else
+	swi OS_ReadEscapeState
+	bcs exit
+	.endif
 	
 	b main_loop
 
@@ -308,23 +317,25 @@ screen_addr_input:
 
 exit:	
 	; wait for vsync (any pending buffers)
+	.if _ENABLE_RASTERMAN
 	swi RasterMan_Wait
 	swi RasterMan_Release
 	swi RasterMan_Wait
+	.endif
 
-.if _ENABLE_MUSIC
+	.if _ENABLE_MUSIC
 	; disable music
 	mov r0, #0
 	swi QTM_Clear
-.endif
+	.endif
 
 	; disable vsync event
+	.if !_ENABLE_RASTERMAN
 	mov r0, #OSByte_EventDisable
 	mov r1, #Event_VSync
 	swi OS_Byte
 
 	; release our event handler
-	.if 1
 	mov r0, #EventV
 	adr r1, event_handler
 	mov r2, #0
@@ -354,7 +365,7 @@ exit:
 	SWI OS_Exit
 
 ; R0=event number
-.if 1
+.if !_ENABLE_RASTERMAN
 event_handler:
 	cmp r0, #Event_VSync
 	movnes pc, r14
@@ -428,10 +439,10 @@ event_handler:
 
 error_handler:
 	STMDB sp!, {r0-r2, lr}
+.if !_ENABLE_RASTERMAN
 	MOV r0, #OSByte_EventDisable
 	MOV r1, #Event_VSync
 	SWI OS_Byte
-.if 0
 	MOV r0, #EventV
 	ADR r1, event_handler
 	mov r2, #0
