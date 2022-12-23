@@ -4,6 +4,8 @@
 
 .equ Pattern_Max, 23                ; TODO: automate from MOD file.
 .equ Tracks_Max, 5                  ; TODO: automate from tracks_list file.
+.equ Podule_Number, 1               ; A3020 only has podule 1.
+                                    ; A440 likely in podule 3.
 
 rocket_sync_time:
 	.long 0
@@ -13,14 +15,14 @@ audio_is_playing:
 
 .if _SYNC_EDITOR
 
-podule3_base:
-    .long 0x300C000
+podule_base:
+    .long 0x3000000 | (0x4000 * Podule_Number)
 
-podule3_audio_is_playing:
-    .long 0x300FFFC
+podule_audio_is_playing:
+    .long 0x3003FFC | (0x4000 * Podule_Number)
 
-podule3_vsync_count:
-    .long 0x300FFF8
+podule_vsync_count:
+    .long 0x3003FF8 | (0x4000 * Podule_Number)
 
 ; All initialisation done by the Podule in Editor mode.
 rocket_init:
@@ -81,10 +83,10 @@ rocket_update:
 ; Returns R1 = 16.16 value
 ; Trashes R2, R3
 rocket_sync_get_val:
-    ldr r2, podule3_base
-    ldr r1, [r2, r0, lsl #3]        ; r3 = podule3_base[track_no * 8]
+    ldr r2, podule_base
+    ldr r1, [r2, r0, lsl #3]        ; r3 = podule_base[track_no * 8]
     add r2, r2, #4
-    ldr r3, [r2, r0, lsl #3]        ; r1 = podule3_base[track_no * 8 + 4]
+    ldr r3, [r2, r0, lsl #3]        ; r1 = podule_base[track_no * 8 + 4]
     orr r1, r1, r3, lsl #16         ; val = r3 << 16 | r1
     mov pc, lr
 
@@ -92,38 +94,38 @@ rocket_sync_get_val:
 ; Returns R1 = integer part only
 ; Trashes R2
 rocket_sync_get_val_hi:
-    ldr r2, podule3_base
+    ldr r2, podule_base
     add r2, r2, #4
-    ldr r1, [r2, r0, lsl #3]        ; r1 = podule3_base[track_no * 8 + 4]
+    ldr r1, [r2, r0, lsl #3]        ; r1 = podule_base[track_no * 8 + 4]
     mov pc, lr
 
 ; R0 = track no.
 ; Returns R1 = fractional part only
 ; Trashes R2
 rocket_sync_get_val_lo:
-    ldr r2, podule3_base
-    ldr r1, [r2, r0, lsl #3]        ; r1 = podule3_base[track_no * 8]
+    ldr r2, podule_base
+    ldr r1, [r2, r0, lsl #3]        ; r1 = podule_base[track_no * 8]
     mov pc, lr
 
 rocket_get_audio_is_playing:
-    ldr r2, podule3_audio_is_playing
+    ldr r2, podule_audio_is_playing
     ldr r0, [r2]
     mov pc, lr
 
 ; R0 = audio off (0) on (otherwise)
 rocket_set_audio_playing:
-    ldr r2, podule3_audio_is_playing
+    ldr r2, podule_audio_is_playing
     mov r1, r0, lsl #16             ; podule write to upper 16 bits
     str r1, [r2]
     mov pc, lr
 
 rocket_get_sync_time:
-    ldr r0, podule3_vsync_count
+    ldr r0, podule_vsync_count
     ldr r0, [r0]
     mov pc, lr
 
 rocket_set_sync_time:
-    ldr r2, podule3_vsync_count
+    ldr r2, podule_vsync_count
     mov r1, r0, lsl #16             ; podule write to upper 16 bits
     str r1, [r2]
     mov pc, lr

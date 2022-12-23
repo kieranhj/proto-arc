@@ -5,8 +5,8 @@
 .equ _DEBUG, 1
 .equ _DEBUG_RASTERS, (_DEBUG && 0)
 .equ _ENABLE_MUSIC, 1
-.equ _ENABLE_ROCKET, 0
-.equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
+.equ _ENABLE_ROCKET, 1
+.equ _FIX_FRAME_RATE, 1					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 1
 
 .equ _RUBBER_CUBE, 1
@@ -175,11 +175,10 @@ main_loop:
 	; Really we need something more sophisticated here.
 	; Block only if there's no free buffer to write to.
 
-	; swi RasterMan_Wait
+	swi RasterMan_Wait
 
 	; Block if we've not even had a vsync since last time - we're >50Hz!
-.if 0
-.if Screen_Banks == 2
+.if (Screen_Banks == 2 && 0)
 	; Block if there's a buffer pending to be displayed when double buffered.
 	; This means that we overran the previous frame. Triple buffering may
 	; help here. Or not. ;)
@@ -189,6 +188,7 @@ main_loop:
 	bne .2	
 .endif
 
+.if 0
 	ldr r1, last_vsync
 .1:
 	ldr r2, vsync_count
@@ -205,6 +205,9 @@ main_loop:
 
 	; R0 = vsync delta since last frame.
 	.if _ENABLE_ROCKET
+	.if _FIX_FRAME_RATE
+	mov r0, #1
+	.endif
 	bl rocket_update
 	.endif
 
