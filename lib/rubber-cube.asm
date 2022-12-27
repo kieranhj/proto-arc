@@ -216,11 +216,12 @@ draw_rubber_cube:
     mov r8, #0
     .1:
     .if RUBBER_CUBE_LIGHTING
-    adr r4, vidc_table_1+4      ; 
+    adr r4, vidc_table_1+4      ; use vidc_table_2 if need to double-buffer raster table.
+    add r4, r4, r8, lsl #4 
     mov r5, #VIDC_Col0 | 0x00
-    str r5, [r4, r8, lsl #4]!   ; for this scanine only.
     str r5, [r4], #4
-    str r5, [r4]
+    str r5, [r4], #4
+    str r5, [r4], #4
     .endif
 
     ; Determine historical frame to use for this line.

@@ -57,6 +57,7 @@ rasters_init:
 	ldmfd sp!, {r0-r3}
     mov pc, lr
 
+.if 0
     ; Add some actual rasters. Use a table, dummy.
     mov r3, #0
     adr r2, raster_list
@@ -114,9 +115,25 @@ raster_list:
 
     ; End.
     .long 0xffffffff
+.endif
 
 raster_tables:
 	.long vidc_table_1 - raster_tables
 	.long vidc_table_2 - raster_tables
 	.long vidc_table_3 - raster_tables
 	.long memc_table   - raster_tables
+
+.if 0   ; if need to double-buffer raster table.
+rasters_copy_table:
+    adr r9, vidc_table_1
+    adr r10, vidc_table_2
+    adr r11, vidc_table_3
+
+.1:
+    ldmia r10!, {r0-r7}
+    stmia r9!, {r0-r7}
+    cmp r10, r11
+    blt .1
+
+    mov pc, lr
+.endif

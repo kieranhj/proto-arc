@@ -172,6 +172,7 @@ main_loop:
 
 	; R0 = vsync delta since last frame.
 	.if _ENABLE_ROCKET
+	ldr r0, vsync_delta
 	bl rocket_update
 	.endif
 
@@ -219,6 +220,10 @@ main_loop:
 	.endif
 
 	str r0, vsync_delta
+
+	.if 0 ; if need to double-buffer raster table.
+	bl rasters_copy_table
+	.endif
 
 	; DO STUFF HERE!
 	bl get_next_screen_for_writing
