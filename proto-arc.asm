@@ -3,7 +3,7 @@
 ; ============================================================================
 
 .equ _DEBUG, 1
-.equ _ENABLE_RASTERMAN, 0
+.equ _ENABLE_RASTERMAN, 1
 .equ _ENABLE_MUSIC, 1
 .equ _ENABLE_ROCKET, 1
 .equ _SYNC_EDITOR, (_ENABLE_ROCKET && 1)
@@ -170,6 +170,11 @@ main:
 
 main_loop:
 
+	; R0 = vsync delta since last frame.
+	.if _ENABLE_ROCKET
+	bl rocket_update
+	.endif
+
 	SET_BORDER 0x0000ff	; red
 	.if _RUBBER_CUBE
 	bl update_rubber_cube
@@ -215,16 +220,6 @@ main_loop:
 
 	str r0, vsync_delta
 
-	; R0 = vsync delta since last frame.
-	.if _ENABLE_ROCKET
-	bl rocket_update
-	.endif
-
-	; show debug
-	.if _DEBUG
-	bl debug_write_vsync_count
-	.endif
-
 	; DO STUFF HERE!
 	bl get_next_screen_for_writing
 	ldr r11, screen_addr
@@ -243,6 +238,11 @@ main_loop:
 	SET_BORDER 0xffff00	; cyan
 	ldr r11, screen_addr
 	bl draw_scroller
+
+	; show debug
+	.if _DEBUG
+	bl debug_write_vsync_count
+	.endif
 
 	SET_BORDER 0x000000	; black
 	bl show_screen_at_vsync

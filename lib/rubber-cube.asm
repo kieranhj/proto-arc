@@ -2,7 +2,7 @@
 ; Rubber cube.
 ; ============================================================================
 
-.equ RUBBER_CUBE_LIGHTING, 0        ; TODO: Use RasterMan to do this per line.
+.equ RUBBER_CUBE_LIGHTING, 1        ; TODO: Use RasterMan to do this per line.
 .equ RUBBER_CUBE_DELAY_SHIFT, 16     ; 16=-Y, 15=-Y/2, 0=none
 .equ RUBBER_CUBE_SPLIT, 1
 
@@ -137,17 +137,23 @@ update_rubber_cube:
     cmp r0, #0
     rsbmi r0, r0, #0            ; make positive. [0.16]
                                 ; otherwise it should be v small.
-    mov r0, r0, lsr #12         ; [0.4]
-    cmp r0, #0x10
-    movge r0, #0x0f             ; clamp to [0-15]
+    mov r0, r0, asr #11         ; [0.5]
+    cmp r0, #0x20
+    movge r0, #0x1f             ; clamp to [0-15]
+
+    add r2, r11, #1             ; colour index = face index+1
+    orr r2, r2, r2, lsl #4
+    orr r2, r2, r2, lsl #8      ; convert to colour half word
+
+    orr r0, r0, r2, lsl #16     ; colour half word | face intensity
     .else
     add r0, r11, #1             ; colour index = face index+1
-    .endif
 
     ; Convert colour index to colour word.
     orr r0, r0, r0, lsl #4
     orr r0, r0, r0, lsl #8
     orr r0, r0, r0, lsl #16
+    .endif
 
     str r0, [r10], #4           ; colour_word
 
@@ -209,6 +215,13 @@ draw_rubber_cube:
     ; For each scanline Y.
     mov r8, #0
     .1:
+    .if RUBBER_CUBE_LIGHTING
+    adr r4, vidc_table_1+4      ; 
+    mov r5, #VIDC_Col0 | 0x00
+    str r5, [r4, r8, lsl #4]!   ; for this scanine only.
+    str r5, [r4], #4
+    str r5, [r4]
+    .endif
 
     ; Determine historical frame to use for this line.
     ldr r0, rubber_cube_frame   ; start simple = frame - Y
@@ -333,6 +346,24 @@ draw_rubber_cube:
 	ldr r6, gen_code_pointers_p
     ; Uses: r1, r3, r6, r9, r10, r11.
 
+    .if RUBBER_CUBE_LIGHTING
+    ; Intensity.
+    mov r2, r9, lsr #28         ; face index.
+    adr r5, face_1_ramp-128
+    add r5, r5, r2, lsl #7      ; face_0_ramp + face index * 128
+
+    and r2, r9, #0x1f           ; intensity.
+    ldr r5, [r5, r2, lsl #2]    ; face_[index]_ramp[intensity]
+
+    adr r4, vidc_table_1        ; 
+    add r4, r4, r0, lsl #2      ; visible faces * 4
+    str r5, [r4, r8, lsl #4]    ; for this scanine only.      
+
+    ; Extract colour word.
+    mov r9, r9, lsr #16         ; half word.
+    orr r9, r9, r9, lsl #16     ; full word.
+    .endif
+
     .if _SPAN_GEN_MULTI_WORD
     ; r2, r4, r5, r9 as colour words when using multi-word span plot.
     mov r2, r9
@@ -382,3 +413,215 @@ object_min_y:
 
 object_max_y:
     .long 0
+
+.if RUBBER_CUBE_LIGHTING
+face_1_ramp:
+    .long VIDC_Col1 | 0x000
+    .long VIDC_Col1 | 0x000
+    .long VIDC_Col1 | 0x000
+    .long VIDC_Col1 | 0x000
+    .long VIDC_Col1 | 0x001
+    .long VIDC_Col1 | 0x001
+    .long VIDC_Col1 | 0x002
+    .long VIDC_Col1 | 0x002
+    .long VIDC_Col1 | 0x003
+    .long VIDC_Col1 | 0x003
+    .long VIDC_Col1 | 0x004
+    .long VIDC_Col1 | 0x004
+    .long VIDC_Col1 | 0x005
+    .long VIDC_Col1 | 0x005
+    .long VIDC_Col1 | 0x006
+    .long VIDC_Col1 | 0x006
+
+    .long VIDC_Col1 | 0x007
+    .long VIDC_Col1 | 0x008
+    .long VIDC_Col1 | 0x009
+    .long VIDC_Col1 | 0x00a
+    .long VIDC_Col1 | 0x00b
+    .long VIDC_Col1 | 0x00c
+    .long VIDC_Col1 | 0x00d
+    .long VIDC_Col1 | 0x00e
+    .long VIDC_Col1 | 0x00f
+    .long VIDC_Col1 | 0x11f
+    .long VIDC_Col1 | 0x22f
+    .long VIDC_Col1 | 0x33f
+    .long VIDC_Col1 | 0x44f
+    .long VIDC_Col1 | 0x55f
+    .long VIDC_Col1 | 0x66f
+    .long VIDC_Col1 | 0x77f
+
+face_2_ramp:
+    .long VIDC_Col2 | 0x000
+    .long VIDC_Col2 | 0x000
+    .long VIDC_Col2 | 0x000
+    .long VIDC_Col2 | 0x000
+    .long VIDC_Col2 | 0x010
+    .long VIDC_Col2 | 0x010
+    .long VIDC_Col2 | 0x020
+    .long VIDC_Col2 | 0x020
+    .long VIDC_Col2 | 0x030
+    .long VIDC_Col2 | 0x030
+    .long VIDC_Col2 | 0x040
+    .long VIDC_Col2 | 0x040
+    .long VIDC_Col2 | 0x050
+    .long VIDC_Col2 | 0x050
+    .long VIDC_Col2 | 0x060
+    .long VIDC_Col2 | 0x060
+
+    .long VIDC_Col2 | 0x070
+    .long VIDC_Col2 | 0x080
+    .long VIDC_Col2 | 0x090
+    .long VIDC_Col2 | 0x0a0
+    .long VIDC_Col2 | 0x0b0
+    .long VIDC_Col2 | 0x0c0
+    .long VIDC_Col2 | 0x0d0
+    .long VIDC_Col2 | 0x0e0
+    .long VIDC_Col2 | 0x0f0
+    .long VIDC_Col2 | 0x1f1
+    .long VIDC_Col2 | 0x2f2
+    .long VIDC_Col2 | 0x3f3
+    .long VIDC_Col2 | 0x4f4
+    .long VIDC_Col2 | 0x5f5
+    .long VIDC_Col2 | 0x6f6
+    .long VIDC_Col2 | 0x7f7
+
+face_3_ramp:
+    .long VIDC_Col3 | 0x000
+    .long VIDC_Col3 | 0x000
+    .long VIDC_Col3 | 0x000
+    .long VIDC_Col3 | 0x000
+    .long VIDC_Col3 | 0x011
+    .long VIDC_Col3 | 0x011
+    .long VIDC_Col3 | 0x022
+    .long VIDC_Col3 | 0x022
+    .long VIDC_Col3 | 0x033
+    .long VIDC_Col3 | 0x033
+    .long VIDC_Col3 | 0x044
+    .long VIDC_Col3 | 0x044
+    .long VIDC_Col3 | 0x055
+    .long VIDC_Col3 | 0x055
+    .long VIDC_Col3 | 0x066
+    .long VIDC_Col3 | 0x066
+
+    .long VIDC_Col3 | 0x077
+    .long VIDC_Col3 | 0x088
+    .long VIDC_Col3 | 0x099
+    .long VIDC_Col3 | 0x0aa
+    .long VIDC_Col3 | 0x0bb
+    .long VIDC_Col3 | 0x0cc
+    .long VIDC_Col3 | 0x0dd
+    .long VIDC_Col3 | 0x0ee
+    .long VIDC_Col3 | 0x0ff
+    .long VIDC_Col3 | 0x1ff
+    .long VIDC_Col3 | 0x2ff
+    .long VIDC_Col3 | 0x3ff
+    .long VIDC_Col3 | 0x4ff
+    .long VIDC_Col3 | 0x5ff
+    .long VIDC_Col3 | 0x6ff
+    .long VIDC_Col3 | 0x7ff
+
+face_4_ramp:
+    .long VIDC_Col4 | 0x000
+    .long VIDC_Col4 | 0x000
+    .long VIDC_Col4 | 0x000
+    .long VIDC_Col4 | 0x000
+    .long VIDC_Col4 | 0x100
+    .long VIDC_Col4 | 0x100
+    .long VIDC_Col4 | 0x200
+    .long VIDC_Col4 | 0x200
+    .long VIDC_Col4 | 0x300
+    .long VIDC_Col4 | 0x300
+    .long VIDC_Col4 | 0x400
+    .long VIDC_Col4 | 0x400
+    .long VIDC_Col4 | 0x500
+    .long VIDC_Col4 | 0x500
+    .long VIDC_Col4 | 0x600
+    .long VIDC_Col4 | 0x600
+
+    .long VIDC_Col4 | 0x700
+    .long VIDC_Col4 | 0x800
+    .long VIDC_Col4 | 0x900
+    .long VIDC_Col4 | 0xa00
+    .long VIDC_Col4 | 0xb00
+    .long VIDC_Col4 | 0xc00
+    .long VIDC_Col4 | 0xd00
+    .long VIDC_Col4 | 0xe00
+    .long VIDC_Col4 | 0xf00
+    .long VIDC_Col4 | 0xf11
+    .long VIDC_Col4 | 0xf22
+    .long VIDC_Col4 | 0xf33
+    .long VIDC_Col4 | 0xf44
+    .long VIDC_Col4 | 0xf55
+    .long VIDC_Col4 | 0xf66
+    .long VIDC_Col4 | 0xf77
+
+face_5_ramp:
+    .long VIDC_Col5 | 0x000
+    .long VIDC_Col5 | 0x000
+    .long VIDC_Col5 | 0x000
+    .long VIDC_Col5 | 0x000
+    .long VIDC_Col5 | 0x101
+    .long VIDC_Col5 | 0x101
+    .long VIDC_Col5 | 0x202
+    .long VIDC_Col5 | 0x202
+    .long VIDC_Col5 | 0x303
+    .long VIDC_Col5 | 0x303
+    .long VIDC_Col5 | 0x404
+    .long VIDC_Col5 | 0x404
+    .long VIDC_Col5 | 0x505
+    .long VIDC_Col5 | 0x505
+    .long VIDC_Col5 | 0x606
+    .long VIDC_Col5 | 0x606
+
+    .long VIDC_Col5 | 0x707
+    .long VIDC_Col5 | 0x808
+    .long VIDC_Col5 | 0x909
+    .long VIDC_Col5 | 0xa0a
+    .long VIDC_Col5 | 0xb0b
+    .long VIDC_Col5 | 0xc0c
+    .long VIDC_Col5 | 0xd0d
+    .long VIDC_Col5 | 0xe0e
+    .long VIDC_Col5 | 0xf0f
+    .long VIDC_Col5 | 0xf1f
+    .long VIDC_Col5 | 0xf2f
+    .long VIDC_Col5 | 0xf3f
+    .long VIDC_Col5 | 0xf4f
+    .long VIDC_Col5 | 0xf5f
+    .long VIDC_Col5 | 0xf6f
+    .long VIDC_Col5 | 0xf7f
+
+face_6_ramp:
+    .long VIDC_Col6 | 0x000
+    .long VIDC_Col6 | 0x000
+    .long VIDC_Col6 | 0x000
+    .long VIDC_Col6 | 0x000
+    .long VIDC_Col6 | 0x110
+    .long VIDC_Col6 | 0x110
+    .long VIDC_Col6 | 0x220
+    .long VIDC_Col6 | 0x220
+    .long VIDC_Col6 | 0x330
+    .long VIDC_Col6 | 0x330
+    .long VIDC_Col6 | 0x440
+    .long VIDC_Col6 | 0x440
+    .long VIDC_Col6 | 0x550
+    .long VIDC_Col6 | 0x550
+    .long VIDC_Col6 | 0x660
+    .long VIDC_Col6 | 0x660
+
+    .long VIDC_Col6 | 0x770
+    .long VIDC_Col6 | 0x880
+    .long VIDC_Col6 | 0x990
+    .long VIDC_Col6 | 0xaa0
+    .long VIDC_Col6 | 0xbb0
+    .long VIDC_Col6 | 0xcc0
+    .long VIDC_Col6 | 0xdd0
+    .long VIDC_Col6 | 0xee0
+    .long VIDC_Col6 | 0xff0
+    .long VIDC_Col6 | 0xff1
+    .long VIDC_Col6 | 0xff2
+    .long VIDC_Col6 | 0xff3
+    .long VIDC_Col6 | 0xff4
+    .long VIDC_Col6 | 0xff5
+    .long VIDC_Col6 | 0xff6
+    .long VIDC_Col6 | 0xff7
+.endif

@@ -36,7 +36,8 @@ rasters_init:
 	stmfd sp!, {r0-r3}
 
 	mov r4, #0
-	mov r6, #0x40000000		; set border colour black.
+	;mov r6, #0x40000000		; set border colour black.
+    mov r6, #VIDC_Col0 | 0x000
 	mov r7, r6
 	mov r8, r6
 	mov r9, r6
@@ -54,6 +55,7 @@ rasters_init:
 	ldmfd sp, {r0-r3}
 	swi RasterMan_SetTables
 	ldmfd sp!, {r0-r3}
+    mov pc, lr
 
     ; Add some actual rasters. Use a table, dummy.
     mov r3, #0
@@ -74,7 +76,7 @@ rasters_init:
     bne .3
 
     str r3, [r1]            ; always reset bg colour to black.
-    
+
     b .2
 
 ; Number repeats << 8 | Rasterline, VIDC registers x 4.
