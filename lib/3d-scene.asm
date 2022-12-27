@@ -42,7 +42,7 @@
 
 
 camera_pos:
-    VECTOR3 0.0, 0.0, -40.0
+    VECTOR3 0.0, 0.0, -80.0
 
 ; Note camera is fixed to view down +z axis.
 ; TODO: Camera rotation/direction/look at?
@@ -452,14 +452,25 @@ object_num_verts:
     .long 8
 
 object_verts:
-    VECTOR3 -16.0,  16.0, -16.0
-    VECTOR3  16.0,  16.0, -16.0
-    VECTOR3  16.0, -16.0, -16.0
-    VECTOR3 -16.0, -16.0, -16.0
-    VECTOR3 -16.0,  16.0,  16.0
-    VECTOR3  16.0,  16.0,  16.0
-    VECTOR3  16.0, -16.0,  16.0
-    VECTOR3 -16.0, -16.0,  16.0
+.if 1   ; CUBE
+    VECTOR3 -32.0,  32.0, -32.0
+    VECTOR3  32.0,  32.0, -32.0
+    VECTOR3  32.0, -32.0, -32.0
+    VECTOR3 -32.0, -32.0, -32.0
+    VECTOR3 -32.0,  32.0,  32.0
+    VECTOR3  32.0,  32.0,  32.0
+    VECTOR3  32.0, -32.0,  32.0
+    VECTOR3 -32.0, -32.0,  32.0
+.else   ; COLUMN - this makes interesting shapes! FAKE TWISTER!!
+    VECTOR3 -16.0,  64.0, -16.0
+    VECTOR3  16.0,  64.0, -16.0
+    VECTOR3  16.0, -64.0, -16.0
+    VECTOR3 -16.0, -64.0, -16.0
+    VECTOR3 -16.0,  64.0,  16.0
+    VECTOR3  16.0,  64.0,  16.0
+    VECTOR3  16.0, -64.0,  16.0
+    VECTOR3 -16.0, -64.0,  16.0
+.endif
 
 object_num_faces:
     .long 6
