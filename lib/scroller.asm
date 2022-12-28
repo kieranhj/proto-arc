@@ -3,6 +3,7 @@
 ; ============================================================================
 
 .equ Scroller_MaxGlyphs, 96
+.equ Scroller_Y_Pos, 216
 
 ; Assume glyphs are 8x8 pixels = 1 word per row in MODE 9 = 32 bytes per glyph.
 
@@ -64,7 +65,7 @@ plot_gylph:
 update_scroller:
     str lr, [sp, #-4]!
 
-    .if _ENABLE_ROCKET
+    .if _ENABLE_ROCKET && 0
     mov r0, #8
     bl rocket_sync_get_val
     mov r1, r1, lsr #16
@@ -173,7 +174,6 @@ draw_scroller:
 ; font word = 0xabcdefgh
 ; scroll by 1 pixel = 0x0abcdefg - shift right by 4 for second word.
 ; scroll by 1 pixel = 0xi0000000 - shift left by 28 for first word.
-; but first
 
 
 scroller_text_ptr:
@@ -186,7 +186,7 @@ scroller_column:
     .long 0
 
 scroller_y_pos:
-    .long 0
+    .long Scroller_Y_Pos
 
 scroller_message:
     .byte "Hello world! Welcome to my first actual scroller that I've put in an actual demo. :D"

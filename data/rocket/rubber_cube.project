@@ -15,22 +15,22 @@ type="0">
 	</track>
 	<track name="pos_z" folded="0" muteKeyCount="0" color="ffa9b250"
 type="0">
-		<key row="0" val="16.000000" interpolation="0" />
+		<key row="0" val="32.000000" interpolation="0" />
 	</track>
 	<track name="rot_x" folded="0" muteKeyCount="0" color="ff60b250"
 type="0">
-		<key row="0" val="0.000000" interpolation="0" />
+		<key row="0" val="0.500000" interpolation="0" />
 		<key row="128" val="0.500000" interpolation="0" />
 	</track>
 	<track name="rot_y" folded="0" muteKeyCount="0" color="ff4fb292"
 type="0">
-		<key row="0" val="0.500000" interpolation="0" />
+		<key row="0" val="0.250000" interpolation="0" />
 		<key row="128" val="0.000000" interpolation="0" />
 		<key row="200" val="0.250000" interpolation="0" />
 	</track>
 	<track name="rot_z" folded="0" muteKeyCount="0" color="ff4f71b2"
 type="0">
-		<key row="0" val="-0.500000" interpolation="0" />
+		<key row="0" val="0.000000" interpolation="0" />
 		<key row="128" val="0.000000" interpolation="0" />
 		<key row="200" val="-0.500000" interpolation="0" />
 	</track>
@@ -43,15 +43,17 @@ color="ff8850b2" type="0">
 	</track>
 	<track name="line_split" folded="0" muteKeyCount="0"
 color="ffb25091" type="0">
-		<key row="0" val="0.000000" interpolation="0" />
-		<key row="64" val="32.000000" interpolation="1" />
+		<key row="0" val="2.000000" interpolation="0" />
+		<key row="64" val="32.000000" interpolation="0" />
 		<key row="128" val="0.000000" interpolation="0" />
 		<key row="160" val="256.000000" interpolation="0" />
 		<key row="200" val="0.000000" interpolation="0" />
 	</track>
 	<track name="y_pos" folded="0" muteKeyCount="0" color="ffb27474"
 type="0">
-		<key row="0" val="216.000000" interpolation="0" />
+		<key row="0" val="0.000000" interpolation="1" />
+		<key row="64" val="1.000000" interpolation="0" />
+		<key row="200" val="0.000000" interpolation="0" />
 	</track>
 </tracks>
 	</rootElement>

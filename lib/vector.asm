@@ -16,6 +16,7 @@
 
 ; TODO: make_vector?
 
+.if 0   ; UNUSED
 ; Vector add.
 ; Parameters:
 ;  R0=ptr to vector C.
@@ -64,7 +65,7 @@ vector_sub:
 
     stmia r0, {r3-r5}
     mov pc, lr
-
+.endif
 
 ; Dot product.
 ; Parameters:
@@ -100,6 +101,43 @@ vector_dot_product_no_load:
     mla r0, r4, r7, r0                  ;   += a2 * b2  [s30.16] potential overflow
     mla r0, r5, r8, r0                  ;   += a3 * b3  [s30.16] potential overflow
 
+    mov pc, lr
+
+
+; Vector interpolation.
+; Parameters:
+;  R0=ptr to vector C.
+;  R1=ptr to vector A.
+;  R2=ptr to vector B.
+;  R9=lerp value [0.0-1.0]      ; [1.16]
+; Trashes: R3-R9
+;
+; Computes C = A + (B - A) * v
+;
+; A = [ a1 ]   B = [ b1 ]  C = [ a1 + (b1 - a1) * v ]
+;     [ a2 ]       [ b2 ]      [ a2 + (b2 - a2) * v ]
+;     [ a3 ]       [ b3 ]      [ a3 + (b3 - a3) * v ]
+;
+vector_lerp:
+    ldmia r1, {r3-r5}          ; vertex A
+    ldmia r2, {r6-r8}          ; vertex B
+
+    ; Calculate B-A
+    sub r6, r6, r3              ; (b1 - a1)
+    sub r7, r7, r4              ; (b2 - a2)
+    sub r8, r8, r5              ; (b3 - a3)
+
+    mov r6, r6, asr #MULTIPLICATION_SHIFT    ; [s15.8]
+    mov r7, r7, asr #MULTIPLICATION_SHIFT    ; [s15.8]
+    mov r8, r8, asr #MULTIPLICATION_SHIFT    ; [s15.8]
+    mov r9, r9, asr #MULTIPLICATION_SHIFT    ; [1.8]
+
+    mla r3, r6, r9, r3          ; a1 + (b1 - a1) * v
+    mla r4, r7, r9, r4          ; a2 + (b2 - a2) * v
+    mla r5, r8, r9, r5          ; a3 + (b3 - a3) * v
+
+    stmia r0, {r3-r5}
+    mov r9, r9, asl #MULTIPLICATION_SHIFT
     mov pc, lr
 
 

@@ -8,6 +8,8 @@
 .equ OBJ_VERTS_PER_FACE, 4
 .equ OBJ_MAX_EDGES_PER_FACE, OBJ_VERTS_PER_FACE
 
+.equ LERP_3D_SCENE, 1
+
 ; The camera viewport is assumed to be [-1,+1] across its widest axis.
 ; Therefore we multiply all projected coordinates by the screen width/2
 ; in order to map the viewport onto the entire screen.
@@ -68,6 +70,11 @@ temp_vector_1:
 temp_vector_2:
     VECTOR3_ZERO
 
+.if LERP_3D_SCENE
+lerp_value:
+    .long 0
+.endif
+
 ; ============================================================================
 ; ============================================================================
 
@@ -97,6 +104,12 @@ update_3d_scene:
     mov r0, #2
     bl rocket_sync_get_val
     str r1, object_pos+8
+
+    .if LERP_3D_SCENE
+    mov r0, #8
+    bl rocket_sync_get_val
+    str r1, lerp_value
+    .endif
     .endif
 
     .if 1
@@ -135,6 +148,11 @@ update_3d_scene:
     adr r2, temp_matrix
     ldmia r2!, {r3-r11}
     stmia r0!, {r3-r11}
+    .endif
+
+    ; Hard coded object lerp.
+    .if LERP_3D_SCENE
+    bl lerp_3d_objects
     .endif
 
     adr r11, object_pos
@@ -433,6 +451,30 @@ project_to_screen:
     ldr pc, [sp], #4
 
 
+.if LERP_3D_SCENE
+; Simple linear interpolation of objects.
+; Current fixed between cube and column object.
+; NB. Only lerps vertex positions.
+;     Doesn't lerp face normals!
+;
+lerp_3d_objects:
+    str lr, [sp, #-4]!
+    adr r1, cube_verts
+    adr r2, column_verts
+    adr r0, object_verts
+    ldr r10, object_num_verts
+    ldr r9, lerp_value          ; [1.16]
+.1:
+    bl vector_lerp
+    add r0, r0, #VECTOR3_SIZE
+    add r1, r1, #VECTOR3_SIZE
+    add r2, r2, #VECTOR3_SIZE
+    ; TODO: Decide whether vector functions just advance ptrs.
+    subs r10, r10, #1
+    bne .1
+    ldr pc, [sp], #4
+.endif
+
 ; ============================================================================
 ; Object data: CUBE
 ;
@@ -452,7 +494,6 @@ object_num_verts:
     .long 8
 
 object_verts:
-.if 1   ; CUBE
     VECTOR3 -32.0,  32.0, -32.0
     VECTOR3  32.0,  32.0, -32.0
     VECTOR3  32.0, -32.0, -32.0
@@ -461,7 +502,19 @@ object_verts:
     VECTOR3  32.0,  32.0,  32.0
     VECTOR3  32.0, -32.0,  32.0
     VECTOR3 -32.0, -32.0,  32.0
-.else   ; COLUMN - this makes interesting shapes! FAKE TWISTER!!
+
+.if LERP_3D_SCENE
+cube_verts:     ; CUBE
+    VECTOR3 -32.0,  32.0, -32.0
+    VECTOR3  32.0,  32.0, -32.0
+    VECTOR3  32.0, -32.0, -32.0
+    VECTOR3 -32.0, -32.0, -32.0
+    VECTOR3 -32.0,  32.0,  32.0
+    VECTOR3  32.0,  32.0,  32.0
+    VECTOR3  32.0, -32.0,  32.0
+    VECTOR3 -32.0, -32.0,  32.0
+
+column_verts:   ; COLUMN
     VECTOR3 -16.0,  64.0, -16.0
     VECTOR3  16.0,  64.0, -16.0
     VECTOR3  16.0, -64.0, -16.0
@@ -510,3 +563,16 @@ projected_verts:
 
 polygon_buffer:
     .skip OBJ_VERTS_PER_FACE * 2 * 4
+
+; ============================================================================
+
+.if 0 ; PYRAMID - but would have to make the face normals correct...
+    VECTOR3 -16.0,  32.0, -16.0
+    VECTOR3  16.0,  32.0, -16.0
+    VECTOR3  64.0, -32.0, -64.0
+    VECTOR3 -64.0, -32.0, -64.0
+    VECTOR3 -16.0,  32.0,  16.0
+    VECTOR3  16.0,  32.0,  16.0
+    VECTOR3  64.0, -32.0,  64.0
+    VECTOR3 -64.0, -32.0,  64.0
+.endif
