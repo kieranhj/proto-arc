@@ -230,6 +230,8 @@ main_loop:
 	ldr r11, screen_addr
 
 	SET_BORDER 0x00ff00	; green
+	mov r0, #0x8888
+	orr r0, r0, r0, lsl #16
 	bl screen_cls
 
 	SET_BORDER 0xff0000	; blue

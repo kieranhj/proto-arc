@@ -3,7 +3,7 @@
 ; ============================================================================
 
 .equ Pattern_Max, 23                ; TODO: automate from MOD file.
-.equ Tracks_Max, 5                  ; TODO: automate from tracks_list file.
+.equ Tracks_Max, 9                  ; TODO: automate from tracks_list file.
 .equ Podule_Number, 1               ; A3020 only has podule 1.
                                     ; A440 likely in podule 3.
 
@@ -316,26 +316,42 @@ tracks_context:
 
 ; TODO: automate this from track_list file.
 tracks_table:
-    .long track_stniccc_stniccc_frame - tracks_table
-    .long track_stniccc_show_image - tracks_table
-    .long track_stniccc_grey_scale - tracks_table
-    .long track_stniccc_fade_to_white - tracks_table
-    .long track_stniccc_fade_to_black - tracks_table
+    .long track_rubber_pos_x - tracks_table
+    .long track_rubber_pos_y - tracks_table
+    .long track_rubber_pos_z - tracks_table
+    .long track_rubber_rot_x - tracks_table
+    .long track_rubber_rot_y - tracks_table
+    .long track_rubber_rot_z - tracks_table
+    .long track_rubber_line_delay - tracks_table
+    .long track_rubber_line_split - tracks_table
+    .long track_rubber_y_pos - tracks_table
 
-track_stniccc_stniccc_frame:
-    .incbin "data/rocket/stniccc_stniccc_frame.track"
+track_rubber_pos_x:
+    .incbin "data/rocket/rubber_pos_x.track"
 
-track_stniccc_show_image:
-    .incbin "data/rocket/stniccc_show_image.track"
+track_rubber_pos_y:
+    .incbin "data/rocket/rubber_pos_y.track"
 
-track_stniccc_grey_scale:
-    .incbin "data/rocket/stniccc_grey_scale.track"
+track_rubber_pos_z:
+    .incbin "data/rocket/rubber_pos_z.track"
 
-track_stniccc_fade_to_white:
-    .incbin "data/rocket/stniccc_fade_to_white.track"
+track_rubber_rot_x:
+    .incbin "data/rocket/rubber_rot_x.track"
 
-track_stniccc_fade_to_black:
-    .incbin "data/rocket/stniccc_fade_to_black.track"
+track_rubber_rot_y:
+    .incbin "data/rocket/rubber_rot_x.track"
+
+track_rubber_rot_z:
+    .incbin "data/rocket/rubber_rot_x.track"
+
+track_rubber_line_delay:
+    .incbin "data/rocket/rubber_line_delay.track"
+
+track_rubber_line_split:
+    .incbin "data/rocket/rubber_line_split.track"
+
+track_rubber_y_pos:
+    .incbin "data/rocket/rubber_y_pos.track"
 
 ; TODO: Use shared divide function.
 divisor_table:
