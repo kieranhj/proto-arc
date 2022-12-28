@@ -365,7 +365,7 @@ gen_code_no_offset_loop:
 	ldr r4, [r3]
 	str r4, [r12], #4
 	add r5, r5, #32
-	sub r2, r2, #32
+	B gen_code_no_offset_loop
 .1:
 	cmp r2, #16
 	blt .2
@@ -374,11 +374,10 @@ gen_code_no_offset_loop:
 	ldr r4, [r3]
 	str r4, [r12], #4
 	add r5, r5, #16
-	sub r2, r2, #16
+	B gen_code_no_offset_loop
 .2:
-	cmp r2, #8
-	blt gen_code_last_word
 .endif
+
 	ADRL r2, gen_one_word
 	ADRL r3, gen_one_word_end
 gen_code_main_loop_copy:
@@ -439,7 +438,7 @@ gen_code_end_copy:
 	BNE gen_code_main_loop
 	ADD r1, r1, #1
 	CMP r1, #MAXSPAN
-	BNE gen_code_main_loop
+	BLE gen_code_main_loop
 	LDR pc, [sp], #4
 
 
