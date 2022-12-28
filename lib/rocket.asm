@@ -2,10 +2,11 @@
 ; Rocket sync
 ; ============================================================================
 
-.equ Pattern_Max, 23                ; TODO: automate from MOD file.
+.equ Pattern_Max, 40                ; TODO: automate from MOD file.
 .equ Tracks_Max, 9                  ; TODO: automate from tracks_list file.
 .equ Podule_Number, 1               ; A3020 only has podule 1.
                                     ; A440 likely in podule 3.
+.equ Patterns_All64Rows, 1          ; Helpful.
 
 rocket_sync_time:
 	.long 0
@@ -137,9 +138,10 @@ rocket_sync_time_to_music_pos:
 	mov r1, r0, lsr #2		; row = vsyncs / vpr; fixed speed = 4
 
 ; If all patterns are length 64 can just do this:
-;	mov r0, r1, lsr #6		; pattern = row DIV 64
-;	and r1, r1, #63			; line = row MOD 64
-
+.if Patterns_All64Rows
+	mov r0, r1, lsr #6		; pattern = row DIV 64
+	and r1, r1, #63			; line = row MOD 64
+.else
     adr r2, rocket_music_pattern_lengths
     mov r0, #0
     .1:
@@ -163,6 +165,7 @@ rocket_sync_time_to_music_pos:
     add r2, r2, r0, lsl #3
     ldr r3, [r2, #4]
     and r1, r1, r3          ; line in pattern
+.endif
     mov pc, lr
 
 .macro pat_len start, len
@@ -173,6 +176,7 @@ rocket_sync_time_to_music_pos:
 
 ; TODO: automate from MOD file.
 ; BBPD MOD has short (32 line) patterns at 8, 15, 20, 21.
+.if !Patterns_All64Rows
 rocket_music_pattern_lengths:
     .set ps, 0
     pat_len ps, 64   ; 0
@@ -198,6 +202,7 @@ rocket_music_pattern_lengths:
     pat_len ps, 32   ; 20
     pat_len ps, 32   ; 21
     pat_len ps, 64   ; 22
+.endif
 
 .else
 
@@ -210,6 +215,8 @@ rocket_init:
     ldr r2, [r1, r0, lsl #2]        ; track_data_offset = tracks_table[i]
     add r2, r2, r1                  ; track_ptr = track_data_offset + tracks_table
     ldr r3, [r2], #4                ; num_keys = *track_ptr++
+    ldr r5, [r2], #4                ; track_type = *track_ptr++
+    ; TODO: Handle track types other than TRACK_FLOAT.
     str r2, [r4], #4                ; track_context[i].ptr = track_ptr
     sub r3, r3, #1                  ; num_keys--
     add r2, r2, r3, lsl #3          ; track_end = track_ptr + 8 * (num_keys-1)
@@ -339,10 +346,10 @@ track_rubber_rot_x:
     .incbin "data/rocket/rubber_rot_x.track"
 
 track_rubber_rot_y:
-    .incbin "data/rocket/rubber_rot_x.track"
+    .incbin "data/rocket/rubber_rot_y.track"
 
 track_rubber_rot_z:
-    .incbin "data/rocket/rubber_rot_x.track"
+    .incbin "data/rocket/rubber_rot_z.track"
 
 track_rubber_line_delay:
     .incbin "data/rocket/rubber_line_delay.track"
