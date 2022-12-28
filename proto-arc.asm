@@ -12,6 +12,7 @@
 .equ _DEBUG_RASTERS, (_DEBUG && !_ENABLE_RASTERMAN && 1)
 
 .equ _RUBBER_CUBE, 1
+.equ _DRAW_LOGO, 0
 
 .equ Screen_Banks, 3
 .equ Screen_Mode, 9
@@ -234,7 +235,11 @@ main_loop:
 	SET_BORDER 0x00ff00	; green
 	mov r0, #0x8888
 	orr r0, r0, r0, lsl #16
+	.if _DRAW_LOGO
 	bl logo_copy_and_cls
+	.else
+	bl screen_cls
+	.endif
 
 	SET_BORDER 0xff0000	; blue
 	ldr r11, screen_addr
@@ -541,6 +546,7 @@ screen_addr:
 
 ; R0=cls colour word
 ; R11=screen ptr
+.if _DRAW_LOGO
 logo_copy_and_cls:
 	str lr, [sp, #-4]!
 	; Hacky hacky.
@@ -563,6 +569,7 @@ logo_copy_and_cls:
 	sub r12, r12, r9
 	ldr lr, [sp], #4
 	b screen_cls_with_end_ptr_set
+.endif
 
 .include "lib/maths.asm"
 .include "lib/3d-scene.asm"
@@ -626,9 +633,11 @@ grey_palette:
 	.long 0x00FFFFFF
 .endif
 
+.if _DRAW_LOGO
 logo_data:
 .incbin "data/logo.bin"
 logo_end:
+.endif
 
 palette_osword_block:
     .skip 8
