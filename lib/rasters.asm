@@ -2,21 +2,6 @@
 ; Rasters via RasterMan.
 ; ============================================================================
 
-.equ Scroller_Y_Pos, 237
-
-.equ VU_Bars_Y_Pos, 216
-.equ VU_Bars_Height, 3
-.equ VU_Bars_Gap, 4
-.equ VU_Bars_Effect, 2	; 'effect'
-.equ VU_Bars_Gravity, 2	; lines per vsync
-
-.equ Horizontal_Divider_1, 100
-.equ Horizontal_Divider_2, 202
-.equ Horizontal_Divider_3, 233
-.equ MenuArea_Top, Horizontal_Divider_1+2
-.equ MenuArea_Height, Horizontal_Divider_2-Horizontal_Divider_1-3
-.equ Stave_Top, VU_Bars_Y_Pos - VU_Bars_Gap
-
 rasters_init:
     ; Configure RasterMan for future compatibility.
     mov r0, #4
@@ -80,7 +65,7 @@ rasters_init:
 ; Number repeats << 8 | Rasterline, VIDC registers x 4.
 ; 0xffffffff to end list.
 raster_list:
-    .long 170 << 8 | 0,   VIDC_Col8 | 0x444, VIDC_Border | 0x000, VIDC_Border | 0x000, VIDC_Border | 0x000
+    .long 170 << 8 | 0,   VIDC_Col8 | 0x111, VIDC_Border | 0x000, VIDC_Border | 0x000, VIDC_Border | 0x000
     .long 86  << 8 | 170, VIDC_Col8 | 0x333, VIDC_Border | 0x000, VIDC_Border | 0x000, VIDC_Border | 0x000
 
     ; End.

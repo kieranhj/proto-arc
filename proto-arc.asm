@@ -23,6 +23,8 @@
 .equ Screen_Bytes, Screen_Stride*Screen_Height
 .equ Mode_Bytes, Screen_Stride*Mode_Height
 
+.equ Logo_Y_Pos, 32
+
 .include "lib/swis.h.asm"
 .include "lib/config.h.asm"
 
@@ -232,7 +234,7 @@ main_loop:
 	SET_BORDER 0x00ff00	; green
 	mov r0, #0x8888
 	orr r0, r0, r0, lsl #16
-	bl screen_cls
+	bl logo_copy_and_cls
 
 	SET_BORDER 0xff0000	; blue
 	ldr r11, screen_addr
@@ -537,6 +539,31 @@ screen_addr:
 ; Additional code modules
 ; ============================================================================
 
+; R0=cls colour word
+; R11=screen ptr
+logo_copy_and_cls:
+	str lr, [sp, #-4]!
+	; Hacky hacky.
+	add r12, r11, #Screen_Stride * Logo_Y_Pos
+	bl screen_cls_with_end_ptr_set
+
+	; Copy logo data to screen.
+	adr r10, logo_data
+	adr r12, logo_end
+	sub r9, r12, r10
+
+.1:
+	ldmia r10!, {r1-r8}
+	stmia r11!, {r1-r8}
+	cmp r10, r12
+	blt .1
+
+	; Clear the rest of it.
+	add r12, r11, #Screen_Bytes
+	sub r12, r12, r9
+	ldr lr, [sp], #4
+	b screen_cls_with_end_ptr_set
+
 .include "lib/maths.asm"
 .include "lib/3d-scene.asm"
 .include "lib/rubber-cube.asm"
@@ -598,6 +625,10 @@ grey_palette:
 	.long 0x00EEEEEE
 	.long 0x00FFFFFF
 .endif
+
+logo_data:
+.incbin "data/logo.bin"
+logo_end:
 
 palette_osword_block:
     .skip 8

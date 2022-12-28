@@ -7,6 +7,8 @@
 ; trashes r0-r9,r11,r12
 screen_cls:
 	add r12, r11, #Screen_Bytes
+; R12 = end of screen
+screen_cls_with_end_ptr_set:
 	mov r1, r0
 	mov r2, r0
 	mov r3, r0

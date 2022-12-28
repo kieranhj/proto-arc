@@ -51,8 +51,7 @@ color="ffb25091" type="0">
 	</track>
 	<track name="y_pos" folded="0" muteKeyCount="0" color="ffb27474"
 type="0">
-		<key row="0" val="0.000000" interpolation="1" />
-		<key row="64" val="200.000000" interpolation="0" />
+		<key row="0" val="216.000000" interpolation="0" />
 	</track>
 </tracks>
 	</rootElement>
