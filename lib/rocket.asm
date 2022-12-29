@@ -2,11 +2,12 @@
 ; Rocket sync
 ; ============================================================================
 
-.equ Pattern_Max, 40                ; TODO: automate from MOD file.
+.equ Pattern_Max, 16                ; TODO: automate from MOD file.
 .equ Tracks_Max, 9                  ; TODO: automate from tracks_list file.
 .equ Podule_Number, 1               ; A3020 only has podule 1.
                                     ; A440 likely in podule 3.
 .equ Patterns_All64Rows, 1          ; Helpful.
+.equ VsyncsPerRow, 6                ;
 
 rocket_sync_time:
 	.long 0
@@ -135,6 +136,7 @@ rocket_set_sync_time:
 ; Returns R0 = pattern, R1 = line
 ; Trashes R2, R3
 rocket_sync_time_to_music_pos:
+.if VsyncsPerRow == 4
 	mov r1, r0, lsr #2		; row = vsyncs / vpr; fixed speed = 4
 
 ; If all patterns are length 64 can just do this:
@@ -165,6 +167,38 @@ rocket_sync_time_to_music_pos:
     add r2, r2, r0, lsl #3
     ldr r3, [r2, #4]
     and r1, r1, r3          ; line in pattern
+.endif
+
+.else
+    ; NB. Assumes all patterns are 64 rows...
+    .if Patterns_All64Rows == 0
+    .error "This code assumes all patterns are 64 rows long!"
+    .endif
+
+    mov r2, #0
+    mov r3, #0
+.1:
+    cmp r0, #64*VsyncsPerRow
+    blt .2
+    sub r0, r0, #64*VsyncsPerRow
+    add r2, r2, #1
+    b .1
+.2:
+    ; R2=pattern
+    cmp r0, #VsyncsPerRow
+    blt .3
+    sub r0, r0, #VsyncsPerRow
+    add r3, r3, #1
+    b .2
+.3:
+    ; R3=row
+    mov r0, r2
+    mov r1, r3
+
+    ; clamp to end of song.
+    cmp r0, #Pattern_Max
+    movge r0, #Pattern_Max-1
+    movge r1, #63
 .endif
     mov pc, lr
 
