@@ -6,7 +6,7 @@
 .equ _ENABLE_RASTERMAN, 1
 .equ _ENABLE_MUSIC, 1
 .equ _ENABLE_ROCKET, 1
-.equ _SYNC_EDITOR, (_ENABLE_ROCKET && 1)
+.equ _SYNC_EDITOR, (_ENABLE_ROCKET && 0)
 .equ _FIX_FRAME_RATE, 1					; useful for !DDT breakpoints
 
 .equ _DEBUG_RASTERS, (_DEBUG && !_ENABLE_RASTERMAN && 1)
@@ -462,6 +462,15 @@ event_handler:
 
 error_handler:
 	STMDB sp!, {r0-r2, lr}
+	.if _ENABLE_RASTERMAN
+	swi RasterMan_Release
+	.endif
+
+	.if _ENABLE_MUSIC
+	; disable music
+	mov r0, #0
+	swi QTM_Clear
+	.endif
 .if !_ENABLE_RASTERMAN
 	MOV r0, #OSByte_EventDisable
 	MOV r1, #Event_VSync
