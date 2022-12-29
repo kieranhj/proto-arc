@@ -9,6 +9,8 @@
 .equ Patterns_All64Rows, 1          ; Helpful.
 .equ VsyncsPerRow, 6                ;
 
+.equ Sequence_MaxVsyncs, Pattern_Max*64*VsyncsPerRow
+
 rocket_sync_time:
 	.long 0
 
@@ -243,6 +245,8 @@ rocket_music_pattern_lengths:
 ; Set up whatever track context is required per track.
 rocket_init:
     mov r0, #0
+    str r0, rocket_sync_time
+
     adr r1, tracks_table
     adr r4, tracks_context
     .1:
@@ -269,11 +273,18 @@ rocket_start:
 
 ; R0 = vsync delta since last update.
 rocket_update:
+    str lr, [sp, #-4]!
 	; Sequence can only move forwards when not connected to editor.
 	ldr r1, rocket_sync_time
 	add r1, r1, r0
 	str r1, rocket_sync_time
-    mov pc, lr
+
+    cmp r1, #Sequence_MaxVsyncs
+    blt .1
+    bl rocket_init
+
+.1:
+    ldr pc, [sp], #4
 
 ; R0 = track no.                    ; pass in sync time?
 ; Returns R1 = 16.16 value

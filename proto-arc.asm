@@ -2,7 +2,7 @@
 ; Prototype Framework - stripped back from stniccc-archie.
 ; ============================================================================
 
-.equ _DEBUG, 1
+.equ _DEBUG, 0
 .equ _ENABLE_RASTERMAN, 1
 .equ _ENABLE_MUSIC, 1
 .equ _ENABLE_ROCKET, 1

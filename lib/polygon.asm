@@ -332,7 +332,7 @@ polygon_plot_spans:
     cmp r5, #0
     bmi .3                      ; nothing to do.
 
-    adr r4, gen_code_pointers
+    ldr r4, gen_code_pointers_p
     adr r7, polygon_span_table
 
     ldr r8, polygon_min_y       ; y
