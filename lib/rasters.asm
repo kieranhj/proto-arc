@@ -65,8 +65,12 @@ rasters_init:
 ; Number repeats << 8 | Rasterline, VIDC registers x 4.
 ; 0xffffffff to end list.
 raster_list:
-    .long 170 << 8 | 0,   VIDC_Col8 | 0x111, VIDC_Border | 0x000, VIDC_Border | 0x000, VIDC_Border | 0x000
-    .long 86  << 8 | 170, VIDC_Col8 | 0x333, VIDC_Border | 0x000, VIDC_Border | 0x000, VIDC_Border | 0x000
+    .long 0,   VIDC_Col8 | 0x222, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000
+    .long 1,   VIDC_Border | 0x222, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000
+    .long 170, VIDC_Border | 0x444, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000
+    .long 171, VIDC_Col8 | 0x444, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000
+    .long 254, VIDC_Border | 0x222, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000
+    .long 255, VIDC_Col8 | 0x222, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000, VIDC_Col0 | 0x000
 
     ; End.
     .long 0xffffffff

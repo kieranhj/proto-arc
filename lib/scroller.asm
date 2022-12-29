@@ -3,63 +3,55 @@
 ; ============================================================================
 
 .equ Scroller_MaxGlyphs, 96
-.equ Scroller_Y_Pos, 216
+.equ Scroller_Y_Pos, 256-Logo_Y_Pos-8
 
 ; Assume glyphs are 8x8 pixels = 1 word per row in MODE 9 = 32 bytes per glyph.
 
 ; R0=glyph number.
+; R6=glyph colour word.
+; R8=screen background word.
 ; R11=screen addr ptr.
-; Trashes: R0-R10.
-.if 0
+; Trashes: R0, R4, R5, R7.
+.if 1
 plot_gylph:
     mov r10, r11
     adr r9, font_data
     add r9, r9, r0, lsl #5              ; assumes 32 bytes per glyph.
 
-    ldmia r9!, {r0-r3}                  ; 4 words for now.
+    mov r7, #8
+.1:                                     ; I don't think this has to be super fast.
+    ldr r0, [r9], #4
+.if 0
     ldr r4, [r10]
     bic r4, r4, r0
     orr r4, r4, r0
+.else
+    bic r4, r8, r0  ; clear glyph bits from screen bg
+    and r5, r0, r6  ; colour gylph bits
+    orr r4, r4, r5
+.endif
     str r4, [r10], #Screen_Stride
 
-    ldr r4, [r10]
-    bic r4, r4, r1
-    orr r4, r4, r1
-    str r4, [r10], #Screen_Stride
-
-    ldr r4, [r10]
-    bic r4, r4, r2
-    orr r4, r4, r2
-    str r4, [r10], #Screen_Stride
-
-    ldr r4, [r10]
-    bic r4, r4, r3
-    orr r4, r4, r3
-    str r4, [r10], #Screen_Stride
-
-    ldmia r9!, {r0-r3}                  ; 4 words for now.
-    ldr r4, [r10]
-    bic r4, r4, r0
-    orr r4, r4, r0
-    str r4, [r10], #Screen_Stride
-
-    ldr r4, [r10]
-    bic r4, r4, r1
-    orr r4, r4, r1
-    str r4, [r10], #Screen_Stride
-
-    ldr r4, [r10]
-    bic r4, r4, r2
-    orr r4, r4, r2
-    str r4, [r10], #Screen_Stride
-
-    ldr r4, [r10]
-    bic r4, r4, r3
-    orr r4, r4, r3
-    str r4, [r10], #Screen_Stride
+    subs r7, r7, #1
+    bne .1
 
     add r11, r11, #4                ; next word
     mov pc, lr
+
+; R1=string ptr
+; R6=glyph colour word.
+; R8=screen background word.
+; R11=screen addr ptr.
+plot_string:
+    str lr, [sp, #-4]!
+.1:
+    ldrb r0, [r1], #1
+    cmp r0, #0
+    ldreq pc, [sp], #4
+
+    sub r0, r0, #32    ; ASCII ' '
+    bl plot_gylph
+    b .1    
 .endif
 
 update_scroller:

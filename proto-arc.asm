@@ -13,6 +13,7 @@
 
 .equ _RUBBER_CUBE, 1
 .equ _DRAW_LOGO, 0
+.equ _LEMON_LOGOS, 1
 
 .equ Screen_Banks, 3
 .equ Screen_Mode, 9
@@ -24,7 +25,7 @@
 .equ Screen_Bytes, Screen_Stride*Screen_Height
 .equ Mode_Bytes, Screen_Stride*Mode_Height
 
-.equ Logo_Y_Pos, 32
+.equ Logo_Y_Pos, 16
 
 .include "lib/swis.h.asm"
 .include "lib/config.h.asm"
@@ -237,8 +238,13 @@ main_loop:
 	orr r0, r0, r0, lsl #16
 	.if _DRAW_LOGO
 	bl logo_copy_and_cls
-	.else
+	.endif
+
 	bl screen_cls
+
+	.if _LEMON_LOGOS
+	ldr r11, screen_addr
+	bl lemon_logos
 	.endif
 
 	SET_BORDER 0xff0000	; blue
@@ -578,6 +584,55 @@ logo_copy_and_cls:
 	sub r12, r12, r9
 	ldr lr, [sp], #4
 	b screen_cls_with_end_ptr_set
+.endif
+
+.if _LEMON_LOGOS
+lemon_logos:
+	str lr, [sp, #-4]!
+	add r11, r11, #Screen_Stride * Logo_Y_Pos
+
+	adr r1, bit_string
+	mov r8, #0x00000000
+	mov r6, #0xffffffff
+	bl plot_string
+
+	adr r1, shifters_string
+	mov r8, #0xffffffff
+	mov r6, #0x00000000
+	bl plot_string
+
+	add r11, r11, #19*4
+	adr r1, slip_string
+	mov r8, #0x00000000
+	mov r6, #0xffffffff
+	bl plot_string
+
+	adr r1, stream_string
+	mov r8, #0xffffffff
+	mov r6, #0x00000000
+	bl plot_string
+
+	ldr pc, [sp], #4
+
+bit_string:
+	.byte "bit"
+	.byte 0
+	.align 4
+
+shifters_string:
+	.byte "shifters"
+	.byte 0
+	.align 4
+
+slip_string:
+	.byte "slip"
+	.byte 0
+	.align 4
+
+stream_string:
+	.byte "stream"
+	.byte 0
+	.align 4
 .endif
 
 .include "lib/maths.asm"
