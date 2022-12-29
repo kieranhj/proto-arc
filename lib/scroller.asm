@@ -189,8 +189,21 @@ scroller_y_pos:
     .long Scroller_Y_Pos
 
 scroller_message:
-    .byte "Hello world! Welcome to my first actual scroller that I've put in an actual demo. :D"
-    .byte "                                        "
+; At 1 pixel/frame = 6.4s to traverse the screen.
+; Speed = 40 chars/6.4s = 6.25 chars/s
+; 16 patterns at 6 ticks/row = 122.88s
+; So in 122.88s 122.88s * 6.25 chars/s = 768 chars.
+;                                                                                                              
+;                    1         2         3         4         5         6         7         8         9         
+;          0.........0.........0.........0.........0.........0.........0.........0.........0.........0.........
+    .byte "                                        Is it a terrible twister?  No... this is the first ever rubb"    ; 100
+    .byte "er cube intro for the Acorn Archimedes!  Brought to you by Bitshifters & Slipstream for the Silveste"    ; 200
+    .byte "r NYE 2022 demoparty.  Inspired by the Gerp 2014 rubber vector challenge, just rocking up 8 years la"
+    .byte "te in true Archie fashion.  Credits..  code by kieran -- music by ToBach -- QTM/RasterMan by Phoenix"
+    .byte "^Quantum -- special thanks to Progen.  Tipsy NYE greets go out to...  Ate-Bit -- CRTC -- DESiRE -- H"
+    .byte "ooy Program -- Inverse Phase -- Logicoma -- Loonies -- Proxima -- Rabenauge -- Rift -- Torment -- YM"
+    .byte " Rockerz.  Sending love to Lemon. and Spaceballs for the Amiga inspiration.  Wishing everyone a Happ"
+    .byte "y New Year for 2023.  Hope to see you at NOVA in June :)  and loop.."
     .byte 0
     .align 4
 
