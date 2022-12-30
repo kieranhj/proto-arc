@@ -386,6 +386,10 @@ exit:
 	ldr r1, scr_bank
 	swi OS_Byte
 
+	; CLS
+	mov r0, #12
+	SWI OS_WriteC
+
 	; Flush keyboard buffer.
 	mov r0, #15
 	mov r1, #1
