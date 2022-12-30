@@ -185,17 +185,17 @@ scroller_message:
 ; Speed = 40 chars/6.4s = 6.25 chars/s
 ; 16 patterns at 6 ticks/row = 122.88s
 ; So in 122.88s 122.88s * 6.25 chars/s = 768 chars.
-;                                                                                                              
-;                    1         2         3         4         5         6         7         8         9         
-;          0.........0.........0.........0.........0.........0.........0.........0.........0.........0.........
-    .byte "                                                    Is it a terrible twister?  No... this is the first ever rubb"    ; 100
-    .byte "er cube intro for the Acorn Archimedes!  Brought to you by Bitshifters & Slipstream for the Silveste"    ; 200
-    .byte "r NYE 2022 demoparty.  Inspired by the Gerp 2014 rubber vector challenge, just rocking up 8 years la"
-    .byte "te in true Archie fashion.  Credits..  code by kieran -- music by ToBach -- QTM/RasterMan by Phoenix"
-    .byte "^Quantum -- special thanks to Progen.  Tipsy NYE greets go out to...  Ate-Bit -- CRTC -- DESiRE -- H"
-    .byte "ooy Program -- Inverse Phase -- Logicoma -- Loonies -- Proxima -- Rabenauge -- Rift -- Torment -- YM"
-    .byte " Rockerz.  Sending love to Lemon. and Spaceballs for the Amiga inspiration.  Wishing everyone a Happ"
-    .byte "y New Year for 2023.  Hope to see you at NOVA in June :)"
+;                                                                                                             1
+;                   1         2         3         4         5         6         7         8         9         0
+;          1........0.........0.........0.........0.........0.........0.........0.........0.........0.........0
+    .byte "                                                    Is it a terrible twister?  No... this is the fir"
+    .byte "st ever tipsy cube intro for the Acorn Archimedes!  Brought to you by Bitshifters & Slipstream for t"
+    .byte "he FieldFX 2022 New Year's demostream.  Inspired by the Gerp 2014 rubber vector challenge, just rock"
+    .byte "ing up 8 years late in true Archie fashion.  Credits..  code by kieran -- music by ToBach -- QTM/Ras"
+    .byte "terMan by Phoenix^Quantum -- special thanks to Progen.  Tipsy cheers go out to...  Ate-Bit -- CRTC -"
+    .byte "- DESiRE -- Hooy Program -- Inverse Phase -- Logicoma -- Loonies -- ne7 -- Proxima -- Rabenauge -- R"
+    .byte "ift -- Torment -- YM Rockerz.  Tipsy hugs to Lemon. and Spaceballs for the Amiga inspiration.  Wishi"
+    .byte "ng everyone a Happy New Year for 2023.  See you all at NOVA in June!"
     .byte 0
     .align 4
 
