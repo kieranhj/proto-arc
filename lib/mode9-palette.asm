@@ -8,7 +8,8 @@
 palette_set_colour:
     adrl r1, palette_osword_block
     strb r3, [r1, #0]       ; logical colour
-    mov r0, #16
+    cmp r0, #24             ; border
+    movne r0, #16           ; physical colour
     strb r0, [r1, #1]       ; physical colour
     and r0, r4, #0xff
     strb r0, [r1, #2]       ; red

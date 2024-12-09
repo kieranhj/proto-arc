@@ -5,7 +5,7 @@
 .equ _DEBUG, 1
 .equ _ENABLE_MUSIC, 0
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
-.equ _SYNC_EDITOR, 1
+.equ _SYNC_EDITOR, 0
 
 .equ Screen_Banks, 3
 .equ Screen_Mode, 9
@@ -71,6 +71,8 @@ main:
 
 	; LOAD STUFF HERE!
 
+    bl MakeUnrolledCode
+
 .if _ENABLE_MUSIC
 	; Load module
 	adrl r0, module_filename
@@ -118,8 +120,8 @@ main:
 	bl palette_set_block
 
 	; Sync tracker.
-	bl rocket_init
-	bl rocket_start
+	;bl rocket_init
+	;bl rocket_start
 
 	; Enable Vsync event
 	mov r0, #OSByte_EventEnable
@@ -143,7 +145,7 @@ main_loop:
 	str r0, vsync_delta
 
 	; R0 = vsync delta since last frame.
-	bl rocket_update
+	;bl rocket_update
 
 	; show debug
 	.if _DEBUG
@@ -152,7 +154,17 @@ main_loop:
 
 	; DO STUFF HERE!
 	bl get_next_screen_for_writing
+
+    mov r0, #24             ; border
+    mov r4, #0x000000ff     ; red
+    bl palette_set_colour
+
 	bl tunnel_fx
+
+    mov r0, #24             ; border
+    mov r4, #0x00000000     ; black
+    bl palette_set_colour
+
 	bl show_screen_at_vsync
 
 	; exit if Escape is pressed
@@ -402,7 +414,7 @@ get_next_screen_for_writing:
 ; Additional code modules
 ; ============================================================================
 
-.include "lib/rocket.asm"
+;.include "lib/rocket.asm"
 .include "lib/mode9-palette.asm"
 
 .macro PIXEL_LOOKUP_TO reg
@@ -415,15 +427,30 @@ get_next_screen_for_writing:
 	; 8c
 .endm
 
+tunnel_offset_u:
+    .byte 0
+
+tunnel_offset_v:
+    .byte 0
+
+.p2align 2
+
+.if 0
 tunnel_fx:
 	str lr, [sp, #-4]!
 
-	mov r0, #0
-	bl rocket_sync_get_val_hi	; offset
-	mov r9, r1
+    ldrb r9, tunnel_offset_u
+    add r9, r9, #1
+    strb r9, tunnel_offset_u
+;	mov r0, #0
+;	bl rocket_sync_get_val_hi	; offset
+;	mov r9, r1
 
-	mov r0, #1
-	bl rocket_sync_get_val_hi	; offset
+    ldrb r1, tunnel_offset_v
+    add r1, r1, #1
+    strb r1, tunnel_offset_v
+;	mov r0, #1
+;	bl rocket_sync_get_val_hi	; offset
 	orr r9, r9, r1, lsl #16		; 00bb00aa
 
 	ldr r12, screen_addr
@@ -522,7 +549,163 @@ tunnel_fx:
 	; 2068c per row * 128 = 248,160c + DRAM per screen
 
 	ldr pc, [sp], #4
+.else
+tunnel_fx:
+	str lr, [sp, #-4]!
 
+    ldrb r9, tunnel_offset_u
+    add r9, r9, #1
+    and r9, r9, #0x7f           ; u [0, 127]
+    strb r9, tunnel_offset_u
+
+    ldrb r1, tunnel_offset_v
+    add r1, r1, #1
+    and r1, r1, #0x7f           ; v [0, 127]
+    strb r1, tunnel_offset_v
+
+	ldr r12, screen_addr
+
+    adr r8, xor_texture		    ;
+
+    add r8, r8, r9
+    add r8, r8, r1, lsl #7
+
+    add r9, r8, #4096           ;
+    add r10, r9, #4096          ;
+    add r11, r10, #4096         ; 4*4096 = 16384 = 128*128
+
+    b unrolled_code
+.endif
+
+MakeUnrolledCode:
+    str lr, [sp, #-4]!
+
+    adr r12, unrolled_code          ; dest
+    adr r11, tunnel_map             ; uv data
+	; Each word is 2 pixels of packed U,V  = v1v0u1u0
+    ; u,v [0, 255] => we're going to use half resolution.
+
+    mov r10, #128                   ; rows to plot
+.1:
+
+    mov r6, #160                    ; columns to plot
+.3:
+    mov r9, #0                      ; dest register
+
+.2:
+    ldmia r11!, {r0-r1}             ; R0=v1v0u1u0 R1=v3v2u3u2
+    ; Copy one snippet for 4 pixels = assemble 1 word
+
+    adr r8, unrolled_code_snippet
+
+    ldr r7, [r8], #4                ; ldrb rX, [rY, #Z]
+    orr r7, r7, r9, lsl #12         ; dest reg
+    and r2, r0, #0xfe               ; u0<<1  [0, 127]
+    and r3, r0, #0xfe0000           ; v0<<17 [0, 127]
+    mov r4, r3, lsl #10             ; bottom 5 bits of v0
+    mov r2, r2, lsr #1
+    orr r2, r2, r4, lsr #20         ; v0 | u0
+    orr r7, r7, r2                  ; offset [0, 4095]
+    mov r3, r3, lsr #22             ; top 2 bits of v0
+    add r3, r3, #8                  ; [8, 11]
+    orr r7, r7, r3, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 0
+
+    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    and r2, r0, #0xfe00             ; u1<<9  [0, 127]
+    and r3, r0, #0xfe000000         ; v1<<25 [0, 127]
+    mov r4, r3, lsl #2              ; bottom 5 bits of v1
+    mov r2, r2, lsr #9
+    orr r2, r2, r4, lsr #20         ; v1 | u1
+    orr r7, r7, r2                  ; offset [0, 4095]
+    mov r3, r3, lsr #30             ; top 2 bits of v1
+    add r3, r3, #8                  ; [8, 11]
+    orr r7, r7, r3, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 1
+
+    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #8
+    orr r7, r7, r9, lsl #12         ; dest reg
+    orr r7, r7, r9, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 2
+
+    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    and r2, r1, #0xfe               ; u2<<1  [0, 127]
+    and r3, r1, #0xfe0000           ; v2<<17 [0, 127]
+    mov r4, r3, lsl #10             ; bottom 5 bits of v2
+    mov r2, r2, lsr #1
+    orr r2, r2, r4, lsr #20         ; v2 | u2
+    orr r7, r7, r2                  ; offset [0, 4095]
+    mov r3, r3, lsr #22             ; top 2 bits of v2
+    add r3, r3, #8                  ; [8, 11]
+    orr r7, r7, r3, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 3
+
+    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #16
+    orr r7, r7, r9, lsl #12         ; dest reg
+    orr r7, r7, r9, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 4
+
+    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    and r2, r1, #0xfe00             ; u3<<9  [0, 127]
+    and r3, r1, #0xfe000000         ; v3<<25 [0, 127]
+    mov r4, r3, lsl #2              ; bottom 5 bits of v3
+    mov r2, r2, lsr #9
+    orr r2, r2, r4, lsr #20         ; v3 | u3
+    orr r7, r7, r2                  ; offset [0, 4095]
+    mov r3, r3, lsr #30             ; top 2 bits of v3
+    add r3, r3, #8                  ; [8, 11]
+    orr r7, r7, r3, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 5
+
+    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #24
+    orr r7, r7, r9, lsl #12         ; dest reg
+    orr r7, r7, r9, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 6
+
+    ; Do this 8 times for R0-7
+    add r9, r9, #1
+    cmp r9, #8
+    bne .2
+
+    ; Write out plot snippet.
+    ldmia r8!, {r0-r2}
+    stmia r12!, {r0-r2}
+
+    subs r6, r6, #32                ; 8 words at a time = 32 chunky pixels.
+    bne .3
+
+    ; Write out increment screen ptr.
+    ldr r0, [r8], #4
+    str r0, [r12], #4
+
+    subs r10, r10, #1               ; next row
+    bne .1
+
+    ; Write out rts.
+    ldr r0, [r8], #4
+    str r0, [r12], #4
+
+    ldr pc, [sp], #4
+
+unrolled_code_snippet:
+    ldrb r0, [r0, #0]               ; 4c    <= mod imm offset, base reg, dest reg
+    ldrb r14, [r0, #0]              ; 4c    <= mod imm offset, base reg
+    orr r0, r0, r14, lsl #8         ; 1c    <= mod dest reg
+    ldrb r14, [r0, #0]              ; 4c    <= mod imm offset, base reg
+    orr r0, r0, r14, lsl #16        ; 1c    <= mod dest reg
+    ldrb r14, [r0, #0]              ; 4c    <= mod imm offset, base reg
+    orr r0, r0, r14, lsl #24        ; 1c    <= mod dest reg
+
+    ; Plot the pixels.
+    add r14, r12, #Screen_Stride    ; 1c
+    stmia r12!, {r0-r7}             ; 3+8*1.25=13c
+    stmia r14!, {r0-r7}             ; 3+8*1.25=13c
+
+    ; Skip a ine.
+    add r12, r12, #Screen_Stride    ; 1c
+
+    ; Return.
+    ldr pc, [sp], #4
 
 ; ============================================================================
 ; Data Segment
@@ -561,7 +744,8 @@ tunnel_map:
 ; MODE 9 texture, 4 bpp x 2
 .p2align 6
 xor_texture:
-.incbin "data/xor.bin"
+.incbin "data/xor128.bin"
+.incbin "data/xor128.bin"      ; twice :)
 
 ; ============================================================================
 ; BSS Segment
@@ -575,3 +759,5 @@ palette_osword_block:
     ; green
     ; blue
     ; (pad)
+
+unrolled_code:
