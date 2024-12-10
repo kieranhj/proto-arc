@@ -12,6 +12,84 @@ def save_file(data,path):
 ##########################################################################
 ##########################################################################
 
+def tunnel_func(x, y):
+    d = math.sqrt( x*x + y*y )
+    a = math.atan2( y, x )
+
+    # magic formulas here
+    if d>0.1:           # TODO: Make centre black.
+        v = 0.25/d      # TODO: Not const. r/tex_size = 32/128 = 0.25
+    else:
+        v = 0
+
+    u = a / math.pi
+
+    return [u,v]
+
+def fancy_func1(x, y):
+    d = math.sqrt( x*x + y*y )
+    a = math.atan2( y, x )
+
+    # magic formulas here
+    if d!=0:
+        u = math.cos( a )/d
+        v = math.sin( a )/d
+    else:
+        u = 0
+        v = 0
+
+    return [u,v]
+
+def two_planes_func(x,y):
+    if y!=0:
+        u = x/abs(y)
+        v = 1/abs(y)
+    else:
+        u = 0
+        v = 0
+
+    return [u, v]
+
+def iq_func1(x, y):             # rotated orthogonal texture
+    r = 32
+
+    u = x*math.cos(2*r) - y*math.sin(2*r)
+    v = y*math.cos(2*r) + x*math.sin(2*r)
+
+    return [u, v]
+
+def iq_func2(x, y):             # can't get good value of r?
+    r = 0.01
+    a = math.atan2( y, x )
+
+    u = 0.3/(r+0.5*x)
+    v = 3*a/math.pi
+
+    return [u, v]
+
+def iq_func3(x, y):             # can't get good value of r?
+    r = 0.25
+    a = math.atan2( y, x )
+
+    u = 0.02*y+0.03*math.cos(a*3)/r
+    v = 0.02*x+0.03*math.sin(a*3)/r    
+
+    return [u, v]
+
+def z_invert_func(x, y):
+    r2 = x*x + y*y
+    r = math.sqrt( r2 )
+
+    if r2!=0:
+        u = x/r2
+        v = y/r2
+    else:
+        u = 0
+        v = 0
+
+    return [u, v]
+
+
 def main(options):
     sw=options.screen_width or 320
     sh=options.screen_height or 256
@@ -21,35 +99,30 @@ def main(options):
     tw=options.tex_size
     th=options.tex_size
 
+    func = fancy_func1
+
     pixel_data=[]
-    for y in range(0, sh):
-        for x in range(0,sw,2):
-            div = math.sqrt((x - sw / 2.0) * (x - sw / 2.0) + (y - sh / 2.0) * (y - sh / 2.0))
-            if div != 0:
-                distance1 = int(ratio * th / div) % th
-            else:
-                distance1 = 0
+    for j in range(0, sh):
+        for i in range(0,sw,2):
 
-            angle1 = int(0.5 * tw * math.atan2(y - sh / 2.0, x - sw / 2.0) / math.pi)
+            # TODO: Figure out specifying the func and params.
+            # TODO: Figure out screen aspect ratio shapes appear square.
+            # TODO: Ability to skip a pixel (or always draw as 0).
 
-            if angle1 < 0:
-                angle1 = 256+angle1
+            x = -1.0 + 2.0*i/sw
+            y = -1.0 + 2.0*j/sh
 
-            div = math.sqrt(((x+1) - sw / 2.0) * ((x+1) - sw / 2.0) + (y - sh / 2.0) * (y - sh / 2.0))
-            if div != 0:
-                distance2 = int(ratio * th / div) % th
-            else:
-                distance2 = 0
+            [u0, v0] = func(x, y)
 
-            angle2 = int(0.5 * tw * math.atan2(y - sh / 2.0, (x+1) - sw / 2.0) / math.pi)
+            x = -1.0 + 2.0*(i+1)/sw
+            y = -1.0 + 2.0*j/sh
 
-            if angle2 < 0:
-                angle2 = 256+angle2
+            [u1, v1] = func(x, y)
 
-            pixel_data.append(angle1)       # u
-            pixel_data.append(angle2)       # u
-            pixel_data.append(distance1)    # v
-            pixel_data.append(distance2)    # v
+            pixel_data.append(int(256.0*u0) & 255)       # u
+            pixel_data.append(int(256.0*u1) & 255)       # u
+            pixel_data.append(int(256.0*v0) % th)        # v
+            pixel_data.append(int(256.0*v1) % th)        # v
 
     #assert(len(pixel_data)==sw*sh*2)
     save_file(pixel_data,options.output_path)

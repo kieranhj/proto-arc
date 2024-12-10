@@ -2,6 +2,9 @@
 
 if NOT EXIST build mkdir build
 
+echo Making tables...
+C:\dev\Python27\python.exe bin\tunnel_texture.py --screen_width 160 --screen_height 128 -o data\tun2.bin 256
+
 echo Assembling code...
 bin\vasmarm_std_win32.exe -L compile.txt -m250 -Fbin -opt-adr -o build\proto-arc.bin proto-arc.asm
 

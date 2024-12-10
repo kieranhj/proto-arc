@@ -565,13 +565,13 @@ tunnel_fx:
 
 	ldr r12, screen_addr
 
-    adr r8, xor_texture		    ;
+    adr r8, xor_texture		    ; base of the texture
 
-    add r8, r8, r9
-    add r8, r8, r1, lsl #7
+    add r8, r8, r9              ; add u offset
+    add r8, r8, r1, lsl #7      ; add v offset (128 bytes per row)
 
-    add r9, r8, #4096           ;
-    add r10, r9, #4096          ;
+    add r9, r8, #4096           ; only 4096 bytes are addressable at a time
+    add r10, r9, #4096          ; using offset load, so use registers
     add r11, r10, #4096         ; 4*4096 = 16384 = 128*128
 
     b unrolled_code
@@ -593,8 +593,11 @@ MakeUnrolledCode:
     mov r9, #0                      ; dest register
 
 .2:
+    ; Load 4 pixels worth of (u,v)
+
     ldmia r11!, {r0-r1}             ; R0=v1v0u1u0 R1=v3v2u3u2
-    ; Copy one snippet for 4 pixels = assemble 1 word
+
+    ; Copy one snippet for 4 pixels = assemble 1 word for writing
 
     adr r8, unrolled_code_snippet
 
@@ -674,7 +677,7 @@ MakeUnrolledCode:
     subs r6, r6, #32                ; 8 words at a time = 32 chunky pixels.
     bne .3
 
-    ; Write out increment screen ptr.
+    ; Write out increment screen ptr to skip a line.
     ldr r0, [r8], #4
     str r0, [r12], #4
 
@@ -739,13 +742,15 @@ blue_palette:
 ; 1 word = 2 pixels worth
 .p2align 6
 tunnel_map:
-.incbin "data/tun.bin"
+.incbin "data/tun2.bin"
 
 ; MODE 9 texture, 4 bpp x 2
 .p2align 6
 xor_texture:
-.incbin "data/xor128.bin"
-.incbin "data/xor128.bin"      ; twice :)
+;.incbin "data/xor128.bin"
+;.incbin "data/xor128.bin"      ; twice :)
+.incbin "data/cloud.bin"
+.incbin "data/cloud.bin"
 
 ; ============================================================================
 ; BSS Segment
