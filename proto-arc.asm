@@ -71,7 +71,7 @@ main:
 
 	; LOAD STUFF HERE!
 
-    bl MakeUnrolledCode
+    bl MakeSinus
 
 .if _ENABLE_MUSIC
 	; Load module
@@ -160,7 +160,7 @@ main_loop:
     mov r4, #0x000000ff     ; red
     bl palette_set_colour
 
-	bl tunnel_fx
+	bl rotate_fx
 
     mov r0, #24             ; border
     mov r4, #0x00000000     ; black
@@ -418,16 +418,7 @@ get_next_screen_for_writing:
 ;.include "lib/rocket.asm"
 .include "lib/mode9-palette.asm"
 
-.macro PIXEL_LOOKUP_TO reg
-	; r0 = XXvv00uu
-	add r3, r0, r9				; XXvv00uu + YYbb00aa
-	and r0, r3, #0x000000ff
-	and r1, r3, #0x00ff0000
-	add r0, r0, r11
-	ldrb \reg, [r0, r1, lsr #8]
-	; 8c
-.endm
-
+.if 0
 tunnel_offset_u:
     .byte 0
 
@@ -436,121 +427,6 @@ tunnel_offset_v:
 
 .p2align 2
 
-.if 0
-tunnel_fx:
-	str lr, [sp, #-4]!
-
-    ldrb r9, tunnel_offset_u
-    add r9, r9, #1
-    strb r9, tunnel_offset_u
-;	mov r0, #0
-;	bl rocket_sync_get_val_hi	; offset
-;	mov r9, r1
-
-    ldrb r1, tunnel_offset_v
-    add r1, r1, #1
-    strb r1, tunnel_offset_v
-;	mov r0, #1
-;	bl rocket_sync_get_val_hi	; offset
-	orr r9, r9, r1, lsl #16		; 00bb00aa
-
-	ldr r12, screen_addr
-	add r2, r12, #Screen_Stride
-	add r5, r12, #Screen_Bytes
-
-	adr r11, xor_texture		; 256x256 pixels = 256x256 bytes
-	adr r10, tunnel_map			; 160x128 half-words
-
-.1:
-    .rept Screen_Stride / 8
-	ldmia r10!, {r5-r8}			; 8 pixels worth of (u,v)
-	; 3+4*1.25 = 8c
-
-	; r5 = v1v0u1u0
-	; pixel 0
-	bic r0, r5, #0x0000ff00
-	; r0 = XXvv00uu
-	PIXEL_LOOKUP_TO r4
-	; 10c
-
-	; pixel 1
-	mov r0, r5, lsr #8
-	bic r0, r0, #0x0000ff00
-	; r0 = 00vv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r4, r4, r3, lsl #8		; pixel << 8
-	; 11c
-
-	; r6 = v3v2u3u2
-	; pixel 2
-	bic r0, r6, #0x0000ff00
-	; r0 = XXvv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r4, r4, r3, lsl #16		; pixel << 16
-	; 11c
-
-	; pixel 3
-	mov r0, r6, lsr #8
-	bic r0, r0, #0x0000ff00
-	; r0 = 00vv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r4, r4, r3, lsl #24		; pixel << 24
-	; 11c
-
-	; r7 = v1v0u1u0
-	; pixel 4
-	bic r0, r7, #0x0000ff00
-	; r0 = XXvv00uu
-	PIXEL_LOOKUP_TO r5
-	; 10c
-
-	; pixel 5
-	mov r0, r7, lsr #8
-	bic r0, r0, #0x0000ff00
-	; r0 = 00vv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r5, r5, r3, lsl #8		; pixel << 8
-	; 11c
-
-	; r8 = v3v2u3u2
-	; pixel 6
-	bic r0, r8, #0x0000ff00
-	; r0 = XXvv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r5, r5, r3, lsl #16		; pixel << 16
-	; 11c
-
-	; pixel 7
-	mov r0, r8, lsr #8
-	bic r0, r0, #0x0000ff00
-	; r0 = 00vv00uu
-	PIXEL_LOOKUP_TO r3
-	orr r5, r5, r3, lsl #24		; pixel << 24
-	; 11c
-
-	stmia r12!, {r4-r5}			; finally write 8 pixels to the screen!
-	stmia r2!, {r4-r5}
-	; 6.5c*2 = 13c
-
-	; 8+43+43+13 = 
-
-	.endr
-
-	; 103c * 20 = 2060c + DRAM per row
-
-	add r2, r2, #Screen_Stride
-	add r12, r12, #Screen_Stride
-
-	; r9 does triple duty! Use top byte as line counter!
-	adds r9, r9, #0x01<<24
-	cmp r9, #Screen_Height<<23
-	blt .1
-	; 8c
-
-	; 2068c per row * 128 = 248,160c + DRAM per screen
-
-	ldr pc, [sp], #4
-.else
 tunnel_fx:
 	str lr, [sp, #-4]!
 
@@ -576,7 +452,6 @@ tunnel_fx:
     add r11, r10, #4096         ; 4*4096 = 16384 = 128*128
 
     b unrolled_code
-.endif
 
 MakeUnrolledCode:
     str lr, [sp, #-4]!
@@ -710,6 +585,9 @@ unrolled_code_snippet:
 
     ; Return.
     ldr pc, [sp], #4
+.endif
+
+; ============================================================================
 
 ; R2=ptr to gradient in 0x0rgb format.
 set_gradient:
@@ -737,6 +615,163 @@ set_gradient:
     bne .1
 
     ldr pc, [sp], #4
+
+; ******************************************************************
+; * Makes sine values [0-0x10000]
+; * Converted to ARM from https://github.com/askeksa/Rose/blob/master/engine/Sinus.S
+; ******************************************************************
+
+sinus_table_p:
+    .long sinus_table_no_adr    ; address patched by the linker from bss segment
+
+.equ Sinus_TableBits,     14                  ; 16384
+.equ Sinus_TableSize,     1<<Sinus_TableBits
+.equ Sinus_TableShift,    32-Sinus_TableBits
+
+MakeSinus:
+    ldr r8, sinus_table_p
+    mov r10, #Sinus_TableSize/2*4       ; offset halfway through the table.
+    sub r11, r10, #4            ; #Sinus_TableSize/2*4-4
+
+    mov r0, #0
+    str r0, [r8], #4
+    add r9, r8, r11             ; #Sinus_TableSize/2*4-4
+    str r0, [r9]
+
+    mov r7, #1
+.1:
+    mov r1, r7
+    mul r1, r7, r1              ; r7 ^2
+    mov r1, r1, asr #8
+
+    mov r0, #2373
+    mul r0, r1, r0
+    mov r0, r0, asr #16
+    rsb r0, r0, #0
+    add r0, r0, #21073
+    mul r0, r1, r0
+    mov r0, r0, asr #16
+    rsb r0, r0, #0
+    add r0, r0, #51469
+    mul r0, r7, r0
+    mov r0, r0, asr #13
+
+    mov r0, r0, asl #2          ; NB. Rose originally [0x0, 0x4000]
+
+    str r0, [r8], #4
+    str r0, [r9, #-4]!
+    rsb r0, r0, #0
+    str r0, [r9, r10]           ; #Sinus_TableSize/2*4
+    str r0, [r8, r11]           ; #Sinus_TableSize/2*4-4
+
+    add r7, r7, #1
+    cmp r7, #Sinus_TableSize/4
+    blt .1
+
+    rsb r0, r0, #0
+    str r0, [r9, #-4]!
+    rsb r0, r0, #0
+    str r0, [r9, r10]
+    mov pc, lr
+
+; ============================================================================
+
+rotate_angle:
+    .long 0         ; {s8.16}
+
+rotate_scale:
+    .long 1<<16     ; {8.16}
+
+; dudy = sin(a) / scale; // horizontal step on image per vertical step on screen
+; dvdy = cos(a) / scale; // vertical step on image per vertical step on screen
+; dudx = dvdy;           // horizontal step on image per horizontal step on screen
+; dvdx = -dudy;          // vertical step on image per horizontal step on screen
+
+rotate_fx:
+    str lr, [sp, #-4]!
+
+    ldr r9, sinus_table_p
+
+    ldr r0, rotate_angle
+    mov r1, r0, asl #8                  ; {0.32}
+    mov r1, r1, lsr #Sinus_TableShift   ; {14.0}
+    ldr r1, [r9, r1, lsl #2]            ; sin(a)    {s1.16}
+    mov r1, r1, asr #8                  ; {s1.8}
+
+    add r0, r0, #64<<16                 ; cos
+    mov r2, r0, asl #8                  ; {0.32}
+    mov r2, r2, lsr #Sinus_TableShift   ; {14.0}
+    ldr r2, [r9, r2, lsl #2]            ; cos(a)    {s1.16}
+    mov r2, r2, asr #8                  ; {s1.8}
+
+    ldr r0, rotate_scale                ; {8.16}
+    mov r0, r0, asr #8                  ; {8.8}
+
+    mul r1, r0, r1                      ; dudy {s15.16} sin(a)*scale
+    mul r2, r0, r2                      ; dvdy {s15.16} cos(a)*scale
+
+    adr r11, xor_texture                ; texture_p
+    ldr r12, screen_addr                ; dest
+
+    ; Centre rotation.
+    ; Rotate vector to TL corner by -a.
+    ; u = x*cos(-a) - y*sin(-a) = x*cos(a) + y*sin(a)
+    ; v = x*sin(-a) + y*cos(-a) = -x*sin(a) + y*cos(a)
+    mov r3, #-80                        ; TL x
+    mov r4, #-64                        ; TL y
+
+    mul r5, r2, r3                      ; x*cos(-a)
+    mla r5, r1, r4, r5                  ; -y*sin(-a)
+
+    mvn r3, r3                          ; -TL y
+    mul r6, r1, r3                      ; -x*sin(-a)
+    mla r6, r2, r4, r6                  ; +y*cos(-a)
+
+    ; Per row.
+    mov r10, #128                       ; rows
+.1:
+    mov r7, r5                          ; working u
+    mov r8, r6                          ; working v
+
+    mov r9, #160                        ; cols
+.2:
+    ; Load texture
+
+    mov r3, r7, asr #16                 ; INT(u)
+    and r3, r3, #127
+    mov r4, r8, asr #16                 ; INT(v)
+    and r4, r4, #127
+
+    add r0, r11, r4, lsl #7             ; tex_p = tex_base + v * tex_width
+    ldrb r0, [r0, r3]                   ; texel = tex_p[u]
+
+    ; Plot 2x2 pixels
+    strb r0, [r12, #Screen_Stride]
+    strb r0, [r12], #1
+
+    ; Update u,v
+    add r7, r7, r2                      ; u+=dudx
+    sub r8, r8, r1                      ; v+=dvdx 
+
+    subs r9, r9, #1
+    bne .2
+
+    ; Move screen ptr.
+    add r12, r12, #Screen_Stride
+
+    ; Update u,v
+    add r5, r5, r1                      ; u+=dudy
+    add r6, r6, r2                      ; v+=dvdy
+
+    subs r10, r10, #1
+    bne .1
+
+    ldr r0, rotate_angle
+    add r0, r0, #1<<16
+    str r0, rotate_angle
+
+    ldr pc, [sp], #4
+
 
 ; ============================================================================
 ; Data Segment
@@ -781,10 +816,10 @@ tunnel_map:
 ; MODE 9 texture, 4 bpp x 2
 .p2align 6
 xor_texture:
-;.incbin "data/xor128.bin"
-;.incbin "data/xor128.bin"      ; twice :)
-.incbin "data/cloud.bin"
-.incbin "data/cloud.bin"
+.incbin "data/xor128.bin"
+.incbin "data/xor128.bin"      ; twice :)
+;.incbin "data/cloud.bin"
+;.incbin "data/cloud.bin"
 
 ; ============================================================================
 ; BSS Segment
@@ -798,5 +833,12 @@ palette_osword_block:
     ; green
     ; blue
     ; (pad)
+
+; ******************************************************************
+; * Sine table with 16384 entries in {s1.16} fixed point format.
+; ******************************************************************
+
+sinus_table_no_adr:
+    .skip Sinus_TableSize*4
 
 unrolled_code:
