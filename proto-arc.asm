@@ -116,8 +116,9 @@ main:
 	swi OS_AddToVector
 
 	; LATE INITALISATION HERE!
-	adr r2, blue_palette
-	bl palette_set_block
+
+    adr r2, gradient_pal
+    bl set_gradient
 
 	; Sync tracker.
 	;bl rocket_init
@@ -710,6 +711,33 @@ unrolled_code_snippet:
     ; Return.
     ldr pc, [sp], #4
 
+; R2=ptr to gradient in 0x0rgb format.
+set_gradient:
+    str lr, [sp, #-4]!
+
+    mov r3, #0
+.1:
+    ldr r0, [r2], #4
+
+    mov r1, r0, lsr #8
+    orr r1, r1, r1, lsl #4
+
+    and r4, r0, #0x00f0
+    orr r4, r4, r4, lsr #4
+    orr r4, r1, r4, lsl #8
+
+    and r1, r0, #0x000f
+    orr r1, r1, r1, lsl #4
+    orr r4, r4, r1, lsl #16
+
+    bl palette_set_colour
+
+    add r3, r3, #1
+    cmp r3, #16
+    bne .1
+
+    ldr pc, [sp], #4
+
 ; ============================================================================
 ; Data Segment
 ; ============================================================================
@@ -720,6 +748,7 @@ module_filename:
 	.align 4
 .endif
 
+.if 0
 blue_palette:
 	.long 0x00000000
 	.long 0x00110000
@@ -737,6 +766,11 @@ blue_palette:
 	.long 0x00DD0000
 	.long 0x00EE0000
 	.long 0x00FF0000
+.endif
+
+; Use https://gradient-blaster.grahambates.com/ by Gigabates to generate nice palettes!
+gradient_pal:
+.long	0xff0,0xff3,0xfd5,0xec6,0xec7,0xeb8,0xda9,0xc9a,0xc8b,0xb7b,0xa6c,0x95d,0x84d,0x73e,0x52f,0x00f
 
 ; (u,v) coordinates interleaved, 1 byte each
 ; 1 word = 2 pixels worth

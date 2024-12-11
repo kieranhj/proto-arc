@@ -50,29 +50,53 @@ def two_planes_func(x,y):
 
     return [u, v]
 
-def iq_func1(x, y):             # rotated orthogonal texture
-    r = 32
+def iq_func1(x, y):             # 
+    r2 = x*x + y*y
+    r = math.sqrt( r2 )         # make this const for rotated ortho texture
 
     u = x*math.cos(2*r) - y*math.sin(2*r)
     v = y*math.cos(2*r) + x*math.sin(2*r)
 
     return [u, v]
 
-def iq_func2(x, y):             # can't get good value of r?
-    r = 0.01
+def iq_func2(x, y):             # spiral?
+    r2 = x*x + y*y
+    r = math.sqrt( r2 )
     a = math.atan2( y, x )
 
-    u = 0.3/(r+0.5*x)
+    if r!=0:
+        u = 0.3/(r+0.5*x)
+    else:
+        u = 0
+
     v = 3*a/math.pi
 
     return [u, v]
 
-def iq_func3(x, y):             # can't get good value of r?
-    r = 0.25
+def iq_func3(x, y):             # lobes?
+    r2 = x*x + y*y
+    r = math.sqrt( r2 )
     a = math.atan2( y, x )
 
-    u = 0.02*y+0.03*math.cos(a*3)/r
-    v = 0.02*x+0.03*math.sin(a*3)/r    
+    if r!=0:
+        u = 0.02*y+0.03*math.cos(a*3)/r
+        v = 0.02*x+0.03*math.sin(a*3)/r    
+    else:
+        u = 0
+        v = 0
+
+    return [u, v]
+
+def iq_func4(x, y):             # folded plane?
+    r2 = x*x + y*y
+    r = math.sqrt( r2 )
+
+    if r!=0:
+        u = 0.1*x/(0.11+r*0.5)
+        v = 0.1*y/(0.11+r*0.5)
+    else:
+        u = 0
+        v = 0
 
     return [u, v]
 
