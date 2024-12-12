@@ -580,6 +580,8 @@ unrolled_code_snippet:
     stmia r12!, {r0-r7}             ; 3+8*1.25=13c
     stmia r14!, {r0-r7}             ; 3+8*1.25=13c
 
+    ; 19c per word * 8 + 27 = 179c for 8 words * 5 = 895c per row * 128 = 114560c per screen
+
     ; Skip a ine.
     add r12, r12, #Screen_Stride    ; 1c
 
@@ -680,7 +682,7 @@ rotate_angle:
     .long 0         ; {s8.16}
 
 rotate_scale:
-    .long 1<<16     ; {8.16}
+    .long 4<<16     ; {8.16}
 
 ; dudy = sin(a) / scale; // horizontal step on image per vertical step on screen
 ; dvdy = cos(a) / scale; // vertical step on image per vertical step on screen
@@ -727,6 +729,12 @@ rotate_fx:
     mul r6, r1, r3                      ; -x*sin(-a)
     mla r6, r2, r4, r6                  ; +y*cos(-a)
 
+    ; Reduce to 16-bit values for u,v,du,dv etc.
+    mov r1, r1, asl #8
+    mov r2, r2, asl #8
+    mov r5, r5, asl #8
+    mov r6, r6, asl #8
+
     ; Per row.
     mov r10, #128                       ; rows
 .1:
@@ -736,22 +744,17 @@ rotate_fx:
     mov r9, #160                        ; cols
 .2:
     ; Load texture
-
-    mov r3, r7, asr #16                 ; INT(u)
-    and r3, r3, #127
-    mov r4, r8, asr #16                 ; INT(v)
-    and r4, r4, #127
-
-    add r0, r11, r4, lsl #7             ; tex_p = tex_base + v * tex_width
-    ldrb r0, [r0, r3]                   ; texel = tex_p[u]
-
-    ; Plot 2x2 pixels
-    strb r0, [r12, #Screen_Stride]
-    strb r0, [r12], #1
+    mov r4, r8, lsr #24                 ; INT(v)
+    add r14, r11, r4, lsl #8            ; tex_p = tex_base + v * tex_width
+    ldrb r0, [r14, r7, lsr #24]         ; texel = tex_p[INT(u)]
 
     ; Update u,v
     add r7, r7, r2                      ; u+=dudx
     sub r8, r8, r1                      ; v+=dvdx 
+
+    ; Plot 2x2 pixels
+    strb r0, [r12, #Screen_Stride]
+    strb r0, [r12], #1
 
     subs r9, r9, #1
     bne .2
@@ -814,10 +817,9 @@ tunnel_map:
 .incbin "data/tun2.bin"
 
 ; MODE 9 texture, 4 bpp x 2
-.p2align 6
+.p2align 16
 xor_texture:
-.incbin "data/xor128.bin"
-.incbin "data/xor128.bin"      ; twice :)
+.incbin "data/xor.bin"
 ;.incbin "data/cloud.bin"
 ;.incbin "data/cloud.bin"
 
