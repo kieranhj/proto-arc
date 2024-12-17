@@ -117,8 +117,11 @@ main:
 
 	; LATE INITALISATION HERE!
 
-    adr r2, gradient_pal
-    bl set_gradient
+    ;adr r2, gradient_pal
+    ;bl set_gradient
+
+    adr r2, itm_pal
+    bl palette_set_block
 
 	; Sync tracker.
 	;bl rocket_init
@@ -565,6 +568,129 @@ MakeUnrolledCode:
     str r0, [r12], #4
 
     ldr pc, [sp], #4
+.endif
+
+; R0=U0
+; R1=V0
+; R10=du
+; R11=dv
+MakeUnrolledRot:
+    str lr, [sp, #-4]!
+
+    adr r12, unrolled_code          ; dest
+
+    mov r6, #160                    ; columns to plot
+.3:
+    mov r9, #0                      ; dest register
+
+.2:
+    adr r8, unrolled_code_snippet
+
+    ; Calculate 12-bit offset.
+
+    ldr r7, [r8], #4                ; ldrb rX, [rY, #Z]
+    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
+    mov r2, r1, lsr #25             ; INT(v) 7 bits total
+    and r2, r2, #31                 ; Select bottom 5 bits of V.
+    mov r2, r2, lsl #7              ; * tex_width
+    add r2, r2, r0, lsr #25         ; + INT(u) for 12 bits total.
+    orr r7, r7, r2                  ; offset [0, 4095]
+    mov r3, r1, lsr #30             ; INT(v) 7 bits total select top 2 bits
+    add r3, r3, #8                  ; [8, 11]
+    orr r7, r7, r3, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 0
+
+    ; Update u,v.
+    add r0, r0, r11                 ; u+=dudx
+    sub r1, r1, r10                 ; v+=dvdx 
+
+    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    ; Dest reg fixed (R14)
+    mov r2, r1, lsr #25             ; INT(v) 7 bits total
+    and r2, r2, #31                 ; Select bottom 5 bits of V.
+    mov r2, r2, lsl #7              ; * tex_width
+    add r2, r2, r0, lsr #25         ; + INT(u) for 12 bits total.
+    orr r7, r7, r2                  ; offset [0, 4095]
+    mov r3, r1, lsr #30             ; INT(v) 7 bits total select top 2 bits
+    add r3, r3, #8                  ; [8, 11]
+    orr r7, r7, r3, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 1
+
+    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #8
+    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
+    orr r7, r7, r9, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 2
+
+    ; Update u,v.
+    add r0, r0, r11                 ; u+=dudx
+    sub r1, r1, r10                 ; v+=dvdx 
+    
+    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    ; Dest reg fixed (R14)
+    mov r2, r1, lsr #25             ; INT(v) 7 bits total
+    and r2, r2, #31                 ; Select bottom 5 bits of V.
+    mov r2, r2, lsl #7              ; * tex_width
+    add r2, r2, r0, lsr #25         ; + INT(u) for 12 bits total.
+    orr r7, r7, r2                  ; offset [0, 4095]
+    mov r3, r1, lsr #30             ; INT(v) 7 bits total select top 2 bits
+    add r3, r3, #8                  ; [8, 11]
+    orr r7, r7, r3, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 3
+
+    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #8
+    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
+    orr r7, r7, r9, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 4
+
+    ; Update u,v.
+    add r0, r0, r11                 ; u+=dudx
+    sub r1, r1, r10                 ; v+=dvdx 
+    
+    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    ; Dest reg fixed (R14)
+    mov r2, r1, lsr #25             ; INT(v) 7 bits total
+    and r2, r2, #31                 ; Select bottom 5 bits of V.
+    mov r2, r2, lsl #7              ; * tex_width
+    add r2, r2, r0, lsr #25         ; + INT(u) for 12 bits total.
+    orr r7, r7, r2                  ; offset [0, 4095]
+    mov r3, r1, lsr #30             ; INT(v) 7 bits total select top 2 bits
+    add r3, r3, #8                  ; [8, 11]
+    orr r7, r7, r3, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 5
+
+    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #8
+    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
+    orr r7, r7, r9, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 6
+
+    ; Update u,v.
+    add r0, r0, r11                 ; u+=dudx
+    sub r1, r1, r10                 ; v+=dvdx 
+
+    ; Four pixels per word.
+
+    ; Do this 8 times for R0-7
+    add r9, r9, #1
+    cmp r9, #8
+    bne .2
+
+    ; Write out plot snippet.
+    ldmia r8!, {r2-r4}
+    stmia r12!, {r2-r4}
+
+    subs r6, r6, #32                ; 8 words at a time = 32 chunky pixels.
+    bne .3
+
+    ; Write out increment screen ptr to skip a line.
+    ldr r0, [r8], #4
+    str r0, [r12], #4
+
+    ; Write out rts.
+    ldr r0, [r8], #4
+    str r0, [r12], #4
+
+    ldr pc, [sp], #4
+
 
 unrolled_code_snippet:
     ldrb r0, [r0, #0]               ; 4c    <= mod imm offset, base reg, dest reg
@@ -582,12 +708,11 @@ unrolled_code_snippet:
 
     ; 19c per word * 8 + 27 = 179c for 8 words * 5 = 895c per row * 128 = 114560c per screen
 
-    ; Skip a ine.
+    ; Skip a line.
     add r12, r12, #Screen_Stride    ; 1c
 
     ; Return.
     ldr pc, [sp], #4
-.endif
 
 ; ============================================================================
 
@@ -682,7 +807,10 @@ rotate_angle:
     .long 0         ; {s8.16}
 
 rotate_scale:
-    .long 4<<16     ; {8.16}
+    .long 2<<16     ; {8.16}
+
+rotate_dir:
+    .long 1<<9
 
 ; dudy = sin(a) / scale; // horizontal step on image per vertical step on screen
 ; dvdy = cos(a) / scale; // vertical step on image per vertical step on screen
@@ -730,11 +858,65 @@ rotate_fx:
     mla r6, r2, r4, r6                  ; +y*cos(-a)
 
     ; Reduce to 16-bit values for u,v,du,dv etc.
-    mov r1, r1, asl #8
-    mov r2, r2, asl #8
-    mov r5, r5, asl #8
-    mov r6, r6, asl #8
+    mov r1, r1, asl #9
+    mov r2, r2, asl #9
+    mov r5, r5, asl #9
+    mov r6, r6, asl #9
 
+.if 1
+    mov r10, #128                       ; rows
+    stmfd sp!, {r1,r2,r5,r6,r10}
+
+    mov r10, r1                         ; du
+    mov r11, r2                         ; dv
+    mov r0, #0                          ; U
+    mov r1, #0                          ; V
+
+    bl MakeUnrolledRot
+
+    ; TODO: The above fn creates all the code from scratch.
+    ;       We only need to update the offsets each frame.
+
+    ; Pop all the regs to begin.
+    ldmfd sp!, {r1,r2,r5,r6,r10}
+
+    ldr r12, screen_addr                ; dest
+
+    ; Loop over 128 rows.
+.1:
+    ; Calculate start U,V (r5, r6 above)
+
+    ; Update texture base ptr for U and V for row.
+
+    adr r8, xor_texture                 ; texture_p
+    mov r4, r6, lsr #25                 ; retrieve top 7-bits of v
+    add r8, r8, r4, lsl #7              ; v * tex_width
+    add r8, r8, r5, lsr #25             ; + u
+
+    ; Update u,v for next line.
+
+    add r5, r5, r1                      ; u+=dudy
+    add r6, r6, r2                      ; v+=dvdy
+
+    stmfd sp!, {r1,r2,r5,r6,r10}
+
+    ; Derive R8-11 for 4096 byte offsets.
+
+    add r9, r8, #4096
+    add r10, r9, #4096
+    add r11, r10, #4096                 ; additional regs
+
+    ; Call plot line.
+    adr lr, .2
+    str lr, [sp, #-4]!
+    bl unrolled_code
+    .2:
+
+    ldmfd sp!, {r1,r2,r5,r6,r10}
+
+    subs r10, r10, #1
+    bne .1
+.else
     ; Per row.
     mov r10, #128                       ; rows
 .1:
@@ -744,9 +926,19 @@ rotate_fx:
     mov r9, #160                        ; cols
 .2:
     ; Load texture
-    mov r4, r8, lsr #24                 ; INT(v)
-    add r14, r11, r4, lsl #8            ; tex_p = tex_base + v * tex_width
-    ldrb r0, [r14, r7, lsr #24]         ; texel = tex_p[INT(u)]
+
+    ; v--- This can be computed as a register select for texture load.
+    mov r4, r8, lsr #30                 ; INT(v) 7 bits total select top 2 bits
+    add r14, r11, r4, lsl #12           ; Select 4096 byte chunk from top 2 bits
+
+    ; v--- This can be computed as a 12-bit immediate offset.
+    mov r4, r8, lsr #25                 ; INT(v) 7 bits total
+    and r4, r4, #31                     ; Select bottom 5 bits.
+    mov r4, r4, lsl #7                  ; * tex_width
+    add r4, r4, r7, lsr #25             ; + INT(u) for 12 bits total.
+
+    ; v--- This becomes lrdb rX, [rSelect, #imm offset]
+    ldrb r0, [r14, r4]                  ; texel
 
     ; Update u,v
     add r7, r7, r2                      ; u+=dudx
@@ -768,10 +960,26 @@ rotate_fx:
 
     subs r10, r10, #1
     bne .1
+.endif
 
     ldr r0, rotate_angle
     add r0, r0, #1<<16
     str r0, rotate_angle
+
+    ldr r0, rotate_scale
+    ldr r1, rotate_dir
+    add r0, r0, r1
+
+    cmp r0, #4<<16          ; max
+    movgt r0, #4<<16
+    mvngt r1, r1
+
+    cmp r0, #1<<15
+    movlt r0, #1<<15
+    mvnlt r1, r1
+    
+    str r0, rotate_scale
+    str r1, rotate_dir
 
     ldr pc, [sp], #4
 
@@ -810,6 +1018,9 @@ blue_palette:
 gradient_pal:
 .long	0xff0,0xff3,0xfd5,0xec6,0xec7,0xeb8,0xda9,0xc9a,0xc8b,0xb7b,0xa6c,0x95d,0x84d,0x73e,0x52f,0x00f
 
+itm_pal:
+.incbin "data/itmpal.bin"
+
 ; (u,v) coordinates interleaved, 1 byte each
 ; 1 word = 2 pixels worth
 .p2align 6
@@ -819,7 +1030,10 @@ tunnel_map:
 ; MODE 9 texture, 4 bpp x 2
 .p2align 16
 xor_texture:
-.incbin "data/xor.bin"
+.incbin "data/itm128.bin"
+.incbin "data/itm128.bin"
+;.incbin "data/xor128.bin"
+;.incbin "data/xor128.bin"
 ;.incbin "data/cloud.bin"
 ;.incbin "data/cloud.bin"
 
