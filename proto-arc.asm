@@ -7,6 +7,8 @@
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 0
 
+.equ UnrolledCodeLength, 0x4a0              ; 0x4a0 to inline.
+
 .equ Screen_Banks, 3
 .equ Screen_Mode, 9
 .equ Screen_Width, 320
@@ -635,9 +637,11 @@ MakeUnrolledRot:
     ldr r0, [r8], #4
     str r0, [r12], #4
 
+    .if UnrolledCodeLength==0
     ; Write out rts.
     ldr r0, [r8], #4
     str r0, [r12], #4
+    .endif
 
     ldr pc, [sp], #4
 
@@ -933,25 +937,40 @@ rotate_fx:
     ; Pop all the regs to begin.
     ldmfd sp!, {r1,r2,r5,r6,r10}
 
+    mov r1, r1, lsr #16
+    mov r1, r1, lsl #16
+    orr r1, r1, r2, lsr #16             ; du:dv
+
+    mov r5, r5, lsr #16
+    mov r5, r5, lsl #16
+    orr r5, r5, r6, lsr #16             ; U:V
+
     ldr r12, screen_addr                ; dest
 
     ; Loop over 128 rows.
-.1:
+RotLineLoop:
     ; Calculate start U,V (r5, r6 above)
 
     ; Update texture base ptr for U and V for row.
 
     adr r8, xor_texture                 ; texture_p
-    mov r4, r6, lsr #25                 ; retrieve top 7-bits of v
-    add r8, r8, r4, lsl #7              ; v * tex_width
     add r8, r8, r5, lsr #25             ; + u
+
+    mov r6, r5, lsl #16                 ; unpack V
+    mov r4, r6, lsr #25                 ; retrieve top 7-bits of v
+    add r8, r8, r4, lsl #7              ; + v * tex_width
 
     ; Update u,v for next line.
 
+    ; This adds du:dv to U:V in packed format.
     add r5, r5, r1                      ; u+=dudy
-    add r6, r6, r2                      ; v+=dvdy
 
-    stmfd sp!, {r1,r2,r5,r6,r10}
+    ; Unpack dv inline.
+    ; add r6, r6, r1, lsl #16           ; v+=dvdy
+    ; Pack U:V.
+    ; orr r5, r5, r6, lsr #16
+
+    stmfd sp!, {r1,r5,r10}
 
     ; Derive R8-11 for 4096 byte offsets.
 
@@ -960,15 +979,20 @@ rotate_fx:
     add r11, r10, #4096                 ; additional regs
 
     ; Call plot line.
+    .if UnrolledCodeLength==0
     adr lr, .2
     str lr, [sp, #-4]!
     bl unrolled_code
     .2:
+    .else
+    unrolled_code:
+    .skip UnrolledCodeLength
+    .endif
 
-    ldmfd sp!, {r1,r2,r5,r6,r10}
+    ldmfd sp!, {r1,r5,r10}
 
     subs r10, r10, #1
-    bne .1
+    bne RotLineLoop
 .else
     ; Per row.
     mov r10, #128                       ; rows
@@ -1074,6 +1098,15 @@ gradient_pal:
 itm_pal:
 .incbin "data/itmpal.bin"
 
+palette_osword_block:
+    .skip 8
+    ; logical colour
+    ; physical colour (16)
+    ; red
+    ; green
+    ; blue
+    ; (pad)
+
 ; (u,v) coordinates interleaved, 1 byte each
 ; 1 word = 2 pixels worth
 .p2align 6
@@ -1094,15 +1127,6 @@ xor_texture:
 ; BSS Segment
 ; ============================================================================
 
-palette_osword_block:
-    .skip 8
-    ; logical colour
-    ; physical colour (16)
-    ; red
-    ; green
-    ; blue
-    ; (pad)
-
 ; ******************************************************************
 ; * Sine table with 16384 entries in {s1.16} fixed point format.
 ; ******************************************************************
@@ -1110,4 +1134,6 @@ palette_osword_block:
 sinus_table_no_adr:
     .skip Sinus_TableSize*4
 
+.if UnrolledCodeLength==0
 unrolled_code:
+.endif
