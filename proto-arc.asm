@@ -116,6 +116,7 @@ main:
 	swi OS_AddToVector
 
 	; LATE INITALISATION HERE!
+    bl MakeUnrolledRot
 
     ;adr r2, gradient_pal
     ;bl set_gradient
@@ -570,13 +571,82 @@ MakeUnrolledCode:
     ldr pc, [sp], #4
 .endif
 
+; Called once.
+MakeUnrolledRot:
+    str lr, [sp, #-4]!
+
+    adr r12, unrolled_code          ; dest
+
+    mov r6, #160                    ; columns to plot
+.3:
+    mov r9, #0                      ; dest register
+
+.2:
+    adr r8, unrolled_code_snippet
+
+    ; Copy code snippet updating destination registers.
+
+    ldr r7, [r8], #4                ; ldrb rX, [rY, #Z]
+    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
+    str r7, [r12], #4               ; write out instruction 0
+
+    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    ; Dest reg fixed (R14)
+    str r7, [r12], #4               ; write out instruction 1
+
+    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #8
+    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
+    orr r7, r7, r9, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 2
+
+    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    ; Dest reg fixed (R14)
+    str r7, [r12], #4               ; write out instruction 3
+
+    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #8
+    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
+    orr r7, r7, r9, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 4
+
+    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    ; Dest reg fixed (R14)
+    str r7, [r12], #4               ; write out instruction 5
+
+    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #8
+    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
+    orr r7, r7, r9, lsl #16         ; base reg
+    str r7, [r12], #4               ; write out instruction 6
+
+    ; Four pixels per word.
+
+    ; Do this 8 times for R0-7
+    add r9, r9, #1
+    cmp r9, #8
+    bne .2
+
+    ; Write out plot snippet.
+    ldmia r8!, {r2-r4}
+    stmia r12!, {r2-r4}
+
+    subs r6, r6, #32                ; 8 words at a time = 32 chunky pixels.
+    bne .3
+
+    ; Write out increment screen ptr to skip a line.
+    ldr r0, [r8], #4
+    str r0, [r12], #4
+
+    ; Write out rts.
+    ldr r0, [r8], #4
+    str r0, [r12], #4
+
+    ldr pc, [sp], #4
+
+; Called once per frame.
 ; R0=U0
 ; R1=V0
 ; R10=du
 ; R11=dv
-MakeUnrolledRot:
-    str lr, [sp, #-4]!
-
+UpdateUnrolledRot:
     adr r12, unrolled_code          ; dest
 
     mov r6, #160                    ; columns to plot
@@ -604,7 +674,7 @@ MakeUnrolledRot:
     add r0, r0, r11                 ; u+=dudx
     sub r1, r1, r10                 ; v+=dvdx 
 
-    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    ldr r7, [r8], #8                ; ldrb r14, [rY, #Z]
     ; Dest reg fixed (R14)
     mov r2, r1, lsr #25             ; INT(v) 7 bits total
     and r2, r2, #31                 ; Select bottom 5 bits of V.
@@ -614,18 +684,15 @@ MakeUnrolledRot:
     mov r3, r1, lsr #30             ; INT(v) 7 bits total select top 2 bits
     add r3, r3, #8                  ; [8, 11]
     orr r7, r7, r3, lsl #16         ; base reg
-    str r7, [r12], #4               ; write out instruction 1
+    str r7, [r12], #8               ; write out instruction 1
 
-    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #8
-    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
-    orr r7, r7, r9, lsl #16         ; base reg
-    str r7, [r12], #4               ; write out instruction 2
+    ; skip instruction 2
 
     ; Update u,v.
     add r0, r0, r11                 ; u+=dudx
     sub r1, r1, r10                 ; v+=dvdx 
     
-    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    ldr r7, [r8], #8                ; ldrb r14, [rY, #Z]
     ; Dest reg fixed (R14)
     mov r2, r1, lsr #25             ; INT(v) 7 bits total
     and r2, r2, #31                 ; Select bottom 5 bits of V.
@@ -635,18 +702,15 @@ MakeUnrolledRot:
     mov r3, r1, lsr #30             ; INT(v) 7 bits total select top 2 bits
     add r3, r3, #8                  ; [8, 11]
     orr r7, r7, r3, lsl #16         ; base reg
-    str r7, [r12], #4               ; write out instruction 3
+    str r7, [r12], #8               ; write out instruction 3
 
-    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #8
-    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
-    orr r7, r7, r9, lsl #16         ; base reg
-    str r7, [r12], #4               ; write out instruction 4
+    ; skip instruction 4
 
     ; Update u,v.
     add r0, r0, r11                 ; u+=dudx
     sub r1, r1, r10                 ; v+=dvdx 
     
-    ldr r7, [r8], #4                ; ldrb r14, [rY, #Z]
+    ldr r7, [r8], #8                ; ldrb r14, [rY, #Z]
     ; Dest reg fixed (R14)
     mov r2, r1, lsr #25             ; INT(v) 7 bits total
     and r2, r2, #31                 ; Select bottom 5 bits of V.
@@ -656,12 +720,9 @@ MakeUnrolledRot:
     mov r3, r1, lsr #30             ; INT(v) 7 bits total select top 2 bits
     add r3, r3, #8                  ; [8, 11]
     orr r7, r7, r3, lsl #16         ; base reg
-    str r7, [r12], #4               ; write out instruction 5
+    str r7, [r12], #8               ; write out instruction 5
 
-    ldr r7, [r8], #4                ; orr r0, r0, r14, lsl #8
-    orr r7, r7, r9, lsl #12         ; dest reg (CONST)
-    orr r7, r7, r9, lsl #16         ; base reg
-    str r7, [r12], #4               ; write out instruction 6
+    ; skip instruction 6
 
     ; Update u,v.
     add r0, r0, r11                 ; u+=dudx
@@ -674,23 +735,15 @@ MakeUnrolledRot:
     cmp r9, #8
     bne .2
 
-    ; Write out plot snippet.
-    ldmia r8!, {r2-r4}
-    stmia r12!, {r2-r4}
+    ; Skip plot snippet (3 words).
+    add r12, r12, #12
 
     subs r6, r6, #32                ; 8 words at a time = 32 chunky pixels.
     bne .3
 
-    ; Write out increment screen ptr to skip a line.
-    ldr r0, [r8], #4
-    str r0, [r12], #4
+    ; Skip post-amble.
 
-    ; Write out rts.
-    ldr r0, [r8], #4
-    str r0, [r12], #4
-
-    ldr pc, [sp], #4
-
+    mov pc, lr
 
 unrolled_code_snippet:
     ldrb r0, [r0, #0]               ; 4c    <= mod imm offset, base reg, dest reg
@@ -872,7 +925,7 @@ rotate_fx:
     mov r0, #0                          ; U
     mov r1, #0                          ; V
 
-    bl MakeUnrolledRot
+    bl UpdateUnrolledRot
 
     ; TODO: The above fn creates all the code from scratch.
     ;       We only need to update the offsets each frame.
