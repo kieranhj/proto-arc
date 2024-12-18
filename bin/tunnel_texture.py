@@ -1,5 +1,5 @@
 #!/usr/bin/python
-import argparse,sys,math,arc
+import png,argparse,sys,math,arc
 
 ##########################################################################
 ##########################################################################
@@ -115,38 +115,63 @@ def z_invert_func(x, y):
 
 
 def main(options):
-    sw=options.screen_width or 320
-    sh=options.screen_height or 256
-    print 'Image width: {0} height: {1}'.format(sw,sh)
-
     ratio=options.ratio or 32.0
     tw=options.tex_size
     th=options.tex_size
 
-    func = fancy_func1
-
     pixel_data=[]
-    for j in range(0, sh):
-        for i in range(0,sw,2):
 
-            # TODO: Figure out specifying the func and params.
-            # TODO: Figure out screen aspect ratio shapes appear square.
-            # TODO: Ability to skip a pixel (or always draw as 0).
+    if options.rgb_path is not None:
 
-            x = -1.0 + 2.0*i/sw
-            y = -1.0 + 2.0*j/sh
+        png_result=png.Reader(filename=options.rgb_path).asRGBA8()
 
-            [u0, v0] = func(x, y)
+        print 'Image width: {0} height: {1}'.format(png_result[0],png_result[1])
 
-            x = -1.0 + 2.0*(i+1)/sw
-            y = -1.0 + 2.0*j/sh
+        for row in png_result[2]:
 
-            [u1, v1] = func(x, y)
+            for i in range(0,len(row),8):
+                rgba0 = [row[i+0],row[i+1],row[i+2],row[i+3]]
+                rgba1 = [row[i+4],row[i+5],row[i+6],row[i+7]]
 
-            pixel_data.append(int(256.0*u0) & 255)       # u
-            pixel_data.append(int(256.0*u1) & 255)       # u
-            pixel_data.append(int(256.0*v0) % th)        # v
-            pixel_data.append(int(256.0*v1) % th)        # v
+                u0=rgba0[0]
+                v0=rgba0[1]
+
+                u1=rgba1[0]
+                v1=rgba1[1]
+
+                pixel_data.append(u0 & 255)       # u
+                pixel_data.append(u1 & 255)       # u
+                pixel_data.append(v0 % th)        # v
+                pixel_data.append(v1 % th)        # v
+
+    else:
+        sw=options.screen_width or 320
+        sh=options.screen_height or 256
+        print 'Image width: {0} height: {1}'.format(sw,sh)
+
+        func = fancy_func1
+
+        for j in range(0, sh):
+            for i in range(0,sw,2):
+
+                # TODO: Figure out specifying the func and params.
+                # TODO: Figure out screen aspect ratio shapes appear square.
+                # TODO: Ability to skip a pixel (or always draw as 0).
+
+                x = -1.0 + 2.0*i/sw
+                y = -1.0 + 2.0*j/sh
+
+                [u0, v0] = func(x, y)
+
+                x = -1.0 + 2.0*(i+1)/sw
+                y = -1.0 + 2.0*j/sh
+
+                [u1, v1] = func(x, y)
+
+                pixel_data.append(int(256.0*u0) & 255)       # u
+                pixel_data.append(int(256.0*u1) & 255)       # u
+                pixel_data.append(int(256.0*v0) % th)        # v
+                pixel_data.append(int(256.0*v1) % th)        # v
 
     #assert(len(pixel_data)==sw*sh*2)
     save_file(pixel_data,options.output_path)
@@ -164,4 +189,5 @@ if __name__=='__main__':
     parser.add_argument('--screen_width',type=int,help='screen width')
     parser.add_argument('--screen_height',type=int,help='screen height')
     parser.add_argument('tex_size',type=int,help='size of the texture')
+    parser.add_argument('--rgb',dest='rgb_path',metavar='FILE',help='use %(metavar)s RGB png as [u,v] map')
     main(parser.parse_args())

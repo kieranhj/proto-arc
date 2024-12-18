@@ -7,7 +7,7 @@
 .equ _FIX_FRAME_RATE, 0					; useful for !DDT breakpoints
 .equ _SYNC_EDITOR, 0
 
-.equ UnrolledCodeLength, 0x4a0              ; 0x4a0 to inline.
+.equ UnrolledCodeLength, 0 ; 0x4a0              ; 0x4a0 to inline.
 
 .equ Screen_Banks, 3
 .equ Screen_Mode, 9
@@ -118,7 +118,8 @@ main:
 	swi OS_AddToVector
 
 	; LATE INITALISATION HERE!
-    bl MakeUnrolledRot
+    ;bl MakeUnrolledRot
+    bl MakeUnrolledCode
 
     ;adr r2, gradient_pal
     ;bl set_gradient
@@ -129,6 +130,9 @@ main:
 	; Sync tracker.
 	;bl rocket_init
 	;bl rocket_start
+    .if _ENABLE_MUSIC
+    SWI QTM_Start
+    .endif
 
 	; Enable Vsync event
 	mov r0, #OSByte_EventEnable
@@ -166,7 +170,8 @@ main_loop:
     mov r4, #0x000000ff     ; red
     bl palette_set_colour
 
-	bl rotate_fx
+	;bl rotate_fx
+    bl tunnel_fx
 
     mov r0, #24             ; border
     mov r4, #0x00000000     ; black
@@ -197,7 +202,7 @@ debug_write_vsync_count:
 	mov r0, #30
 	swi OS_WriteC
 
-.if _ENABLE_MUSIC
+.if _ENABLE_MUSIC && 0
     ; read current tracker position
     mov r0, #-1
     mov r1, #-1
@@ -424,7 +429,7 @@ get_next_screen_for_writing:
 ;.include "lib/rocket.asm"
 .include "lib/mode9-palette.asm"
 
-.if 0
+.if 1
 tunnel_offset_u:
     .byte 0
 
@@ -571,7 +576,8 @@ MakeUnrolledCode:
     str r0, [r12], #4
 
     ldr pc, [sp], #4
-.endif
+
+.else
 
 ; Called once.
 MakeUnrolledRot:
@@ -748,6 +754,7 @@ UpdateUnrolledRot:
     ; Skip post-amble.
 
     mov pc, lr
+.endif
 
 unrolled_code_snippet:
     ldrb r0, [r0, #0]               ; 4c    <= mod imm offset, base reg, dest reg
@@ -860,6 +867,7 @@ MakeSinus:
 
 ; ============================================================================
 
+.if 0
 rotate_angle:
     .long 0         ; {s8.16}
 
@@ -1059,7 +1067,7 @@ RotLineLoop:
     str r1, rotate_dir
 
     ldr pc, [sp], #4
-
+.endif
 
 ; ============================================================================
 ; Data Segment
@@ -1096,7 +1104,8 @@ gradient_pal:
 .long	0xff0,0xff3,0xfd5,0xec6,0xec7,0xeb8,0xda9,0xc9a,0xc8b,0xb7b,0xa6c,0x95d,0x84d,0x73e,0x52f,0x00f
 
 itm_pal:
-.incbin "data/itmpal.bin"
+;.incbin "data/itmpal.bin"
+.incbin "data/phong.pal.bin"
 
 palette_osword_block:
     .skip 8
@@ -1111,17 +1120,21 @@ palette_osword_block:
 ; 1 word = 2 pixels worth
 .p2align 6
 tunnel_map:
-.incbin "data/tun2.bin"
+.incbin "data/face_uv.bin"
+.incbin "data/face_uv.bin"
+;incbin "data/tun2.bin"
 
 ; MODE 9 texture, 4 bpp x 2
 .p2align 16
 xor_texture:
-.incbin "data/itm128.bin"
-.incbin "data/itm128.bin"
+;.incbin "data/itm128.bin"
+;.incbin "data/itm128.bin"
 ;.incbin "data/xor128.bin"
 ;.incbin "data/xor128.bin"
 ;.incbin "data/cloud.bin"
 ;.incbin "data/cloud.bin"
+.incbin "data/phong128.bin"
+.incbin "data/phong128.bin"
 
 ; ============================================================================
 ; BSS Segment
