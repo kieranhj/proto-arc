@@ -13,14 +13,18 @@ scale, lighting experiments, each on its own branch. A scratch/prototype repo.
 ## What's in here
 - `proto-arc.asm`: top-level source; `lib\`: effect code; `data\`: tables, textures, music.
 - `folder\`: files copied into the `!Proto` app; `make.bat`: the build.
-- `bin\`: vasm, lz4, and Python 2 helpers (`tunnel_texture.py`, `png2arc.py`, `xor2arc.py`).
+- `bin\`: vasm, lz4, and Python helpers (`tunnel_texture.py`, `png2arc.py`, `xor2arc.py`; ported from Python 2 to Python 3 on 2026-11-22).
 - `bin\vasmarm_std_win32.exe` is also the vasm that Nemesis's build.py uses.
 
 ## Build and run
 - `make`: runs `make.bat` (works, 2026-11-22): assembles `build\proto-arc.bin`, builds `!Proto` and
   copies it to `..\arculator\hostfs\!Proto` (D:\archie\mine\arculator\hostfs).
-- The first step, `C:\dev\Python27\python.exe bin\tunnel_texture.py ... -o data\tun2.bin`, fails
-  ("path not found": no Python 2 on this machine) and is skipped; the committed `data\tun2.bin` is used.
+- The first step, `py -3 bin\tunnel_texture.py ... -o data\tun2.bin` (Python 3 since the 2026-11-22
+  port), rewrites the tracked `data\tun2.bin`. The Python 3 output differs from the committed file in
+  8 of 40960 bytes: on the 45-degree diagonals `sin(atan2(y,x))/d` comes out exact under Python 3's
+  maths library, but was a hair under under Python 2.7, so `v` is 0 instead of 1/255 there. So
+  each `make` leaves `data\tun2.bin` modified. Either commit the new table or
+  `git restore data/tun2.bin` after building.
 - Run: in Arculator, double-click `!Proto` in the HostFS filer.
 
 ## Local changes
