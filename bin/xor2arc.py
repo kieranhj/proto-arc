@@ -7,7 +7,7 @@ import argparse,sys,math,arc
 def save_file(data,path):
     if path is not None:
         with open(path,'wb') as f:
-            f.write(''.join([chr(x) for x in data]))
+            f.write(bytes(data))
 
 ##########################################################################
 ##########################################################################
@@ -23,28 +23,28 @@ def main(options):
         pack=arc.pack_8bpp
         pixel_max=options.pixel_max or 256
     else:
-        print>>sys.stderr,'FATAL: invalid mode: %d'%options.mode
+        print('FATAL: invalid mode: %d'%options.mode, file=sys.stderr)
         sys.exit(1)
 
     width=options.xor_size
     height=options.xor_size
-    print 'Image width: {0} height: {1}'.format(width,height)
+    print('Image width: {0} height: {1}'.format(width,height))
 
     pixel_data=[]
     for y in range(0, height):
         for x in range(0,width,pixels_per_byte):
             xs=[]
             for p in range(0,pixels_per_byte):
-                c = (pixel_max * (x+p) / width) ^ (pixel_max * y / height)
+                c = (pixel_max * (x+p) // width) ^ (pixel_max * y // height)
                 if pixels_per_byte == 1 and pixel_max == 16:
                     c = c | (c << 4)
                 xs.append(c)
             assert len(xs)==pixels_per_byte
             pixel_data.append(pack(xs))
 
-    assert(len(pixel_data)==width*height/pixels_per_byte)
+    assert(len(pixel_data)==width*height//pixels_per_byte)
     save_file(pixel_data,options.output_path)
-    print 'Wrote {0} bytes Arc data.'.format(len(pixel_data))
+    print('Wrote {0} bytes Arc data.'.format(len(pixel_data)))
 
 
 ##########################################################################

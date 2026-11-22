@@ -1,7 +1,6 @@
 # Wrapper so that `make` works from PowerShell / Windows Terminal.
 # GNU make runs recipes with cmd.exe here (no sh on PATH).
-# NOTE: make_assets.bat needs Python 2.7 at C:\Dev\Python27\python.exe, which
-# is not on this machine, so the build currently stops at the assets step.
+# make_assets.bat runs the asset scripts with Python 3 (py -3; ported 2026-11-22).
 .PHONY: all build help
 all: build
 
@@ -11,4 +10,4 @@ build:
 help:
 	@echo make        - build !Tipsy (runs make.bat; also copies !Tipsy to ..\arculator\hostfs)
 	@echo make help   - this list
-	@echo Blocked: make_assets.bat needs Python 2.7 (C:\Dev\Python27), not installed. See START_HERE.md
+	@echo See START_HERE.md

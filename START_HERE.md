@@ -12,12 +12,12 @@ Tipsy Cube, an Acorn Archimedes intro (ARM, vasm) by Bitshifters & Slipstream, r
 
 ## What's in here
 - `tipsy-cube.asm`: the demo; `lib\loader.asm`: the !RunImage loader; `link_script.txt`: vlink script.
-- `bin\`: the tools, checked in (vasmarm_std_win32, vlink, Shrinkler, lz4, plus Python 2 asset scripts png2arc*.py, sine_table.py).
+- `bin\`: the tools, checked in (vasmarm_std_win32, vlink, Shrinkler, lz4, plus Python asset scripts png2arc*.py, sine_table.py, ported from Python 2 to Python 3 on 2026-11-22).
 - `data\`: graphics and music source; `folder\`: the !Tipsy app's static files.
 - `build\` and `!Tipsy\` are build output (gitignored).
 
 ## Build and run
-- `make`: runs `make.bat` (Makefile added 2026-11-22). **Currently blocked**: `make.bat` first empties `build\`, then `make_assets.bat` calls Python 2.7 at `C:\Dev\Python27\python.exe`, which is not on this machine, so it stops at the assets step. The asset scripts in `bin\` use Python 2 syntax (print statements), so `py -3` will not run them as they are.
+- `make`: runs `make.bat` (Makefile added 2026-11-22). Works (2026-11-22): `make.bat` first empties `build\`, then `make_assets.bat` runs the asset scripts with `py -3` (`set PYTHON=py -3`). The scripts were ported to Python 3 on 2026-11-22. A clean build reproduces the 2023 `build\` byte for byte, including `tipsy-cube.shri`.
 - Rest of the chain: vasm -> `build\tipsy-cube.o`, vlink -> `build\tipsy-cube.bin`, Shrinkler -> `build\tipsy-cube.shri`, then `!Tipsy\` is assembled and copied to `..\arculator\hostfs\!Tipsy` (= D:\archie\mine\arculator\hostfs).
 - Run: Arculator v2.1+, emulate an A3010, sound filter "more reduced" (README). Real hardware: RISC OS 2 or 3.1.
 - `make help` lists the targets.
@@ -28,7 +28,7 @@ Tipsy Cube, an Acorn Archimedes intro (ARM, vasm) by Bitshifters & Slipstream, r
 
 ## Status and next steps
 - Released; no TODO/plan notes found.
-- To build again: port the asset scripts in `bin\` to Python 3 (or install Python 2.7) and update `make_assets.bat`.
+- Builds again since the Python 3 port (2026-11-22).
 
 ## See also
 - README.md; https://bitshifters.github.io for the release.

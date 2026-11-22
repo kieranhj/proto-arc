@@ -7,7 +7,7 @@ import argparse,sys,math,arc
 def save_file(data,path):
     if path is not None:
         with open(path,'wb') as f:
-            f.write(''.join([chr(x) for x in data]))
+            f.write(bytes(data))
 
 ##########################################################################
 ##########################################################################
@@ -15,7 +15,7 @@ def save_file(data,path):
 def main(options):
     sw=options.screen_width or 320
     sh=options.screen_height or 256
-    print 'Image width: {0} height: {1}'.format(sw,sh)
+    print('Image width: {0} height: {1}'.format(sw,sh))
 
     ratio=options.ratio or 32.0
     tw=options.tex_size
@@ -53,7 +53,7 @@ def main(options):
 
     #assert(len(pixel_data)==sw*sh*2)
     save_file(pixel_data,options.output_path)
-    print 'Wrote {0} bytes Arc data.'.format(len(pixel_data))
+    print('Wrote {0} bytes Arc data.'.format(len(pixel_data)))
 
 
 ##########################################################################

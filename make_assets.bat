@@ -1,5 +1,5 @@
 @echo off
-set PYTHON=C:\Dev\Python27\python.exe
+set PYTHON=py -3
 
 %PYTHON% bin\sine_table.py 8192 65536 -o build\sine_8192.bin
 
