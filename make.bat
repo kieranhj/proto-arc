@@ -2,8 +2,9 @@
 
 if NOT EXIST build mkdir build
 
-echo Making tables...
-py -3 bin\tunnel_texture.py --screen_width 160 --screen_height 128 -o data\tun2.bin 256
+rem data\tun2.bin is the committed table from the Python 2 run: Python 3 gives 8 bytes different
+rem on the diagonals. To regenerate anyway, run this line by hand:
+rem py -3 bin\tunnel_texture.py --screen_width 160 --screen_height 128 -o data\tun2.bin 256
 
 echo Assembling code...
 bin\vasmarm_std_win32.exe -L compile.txt -m250 -Fbin -opt-adr -o build\proto-arc.bin proto-arc.asm
