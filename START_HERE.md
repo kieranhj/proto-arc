@@ -29,10 +29,15 @@ scale, lighting experiments, each on its own branch. A scratch/prototype repo.
   **unpushed** commit each: stacked-plot (4cacbb0, 2022-08-15 "Update Arculator version.") and
   wip/cube-plus-rasterman (53ad7d0, 2022-12-27 "Move camera back and increase cube scale.").
 
+## Tipsy Cube history kept here
+- Tipsy Cube (bitshifters/tipsy-cube) grew out of this repo and has been a single-commit release
+  snapshot since 2026-11-27. Its full history is tag `archive/tipsy-cube-main` (its old master tip,
+  192a6b7); tag `release/tipsy-cube` (3815e60) is the commit the released disc image rebuilds from.
+
 ## Status and next steps
 - Most recent line of work (2024-12): unrolled tunnel, rotate and scale (U:V packing), then
   RGB PNGs as UV maps on wip/png-uv-maps. 2022-12 branches: cube plus RasterMan, dither and
   RasterMan lighting, a failed exe-compression attempt. No TODO or plan notes found.
 
 ## See also
-- README.md (one line), D:\archie\mine\rasterman-vasm.
+- README.md (one line), D:\archie\mine\rasterman-vasm, D:\bitshifters\tipsy-cube.
