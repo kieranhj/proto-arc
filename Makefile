@@ -8,6 +8,6 @@ build:
 	cmd /c .\make.bat
 
 help:
-	@echo make        - build !Tipsy (runs make.bat; also copies !Tipsy to ..\arculator\hostfs)
+	@echo make        - build !Tipsy (runs make.bat; also copies !Tipsy to ..\arculator\hostfs\Builds)
 	@echo make help   - this list
 	@echo See START_HERE.md
