@@ -6,7 +6,7 @@ Tipsy Cube, an Acorn Archimedes intro (ARM, vasm) by Bitshifters & Slipstream, r
 |---|---|
 | GitHub | https://github.com/bitshifters/tipsy-cube (public; GitHub fork of kieranhj/proto-arc) |
 | Upstream | `upstream` remote = https://github.com/kieranhj/proto-arc (the framework it grew from) |
-| Local path | D:\archie\mine\tipsy-cube (moved from OneDrive\Archie\Repos\tipsy-cube in the 2026-11 tidy) |
+| Local path | D:\bitshifters\tipsy-cube (moved from OneDrive\Archie\Repos\tipsy-cube in the 2026-11 tidy) |
 | Branch | master (only local branch) |
 | Last commit | 2023-01-01: Update readmes. |
 
@@ -18,7 +18,7 @@ Tipsy Cube, an Acorn Archimedes intro (ARM, vasm) by Bitshifters & Slipstream, r
 
 ## Build and run
 - `make`: runs `make.bat` (Makefile added 2026-11-22). Works (2026-11-22): `make.bat` first empties `build\`, then `make_assets.bat` runs the asset scripts with `py -3` (`set PYTHON=py -3`). The scripts were ported to Python 3 on 2026-11-22. A clean build reproduces the 2023 `build\` byte for byte, including `tipsy-cube.shri`.
-- Rest of the chain: vasm -> `build\tipsy-cube.o`, vlink -> `build\tipsy-cube.bin`, Shrinkler -> `build\tipsy-cube.shri`, then `!Tipsy\` is assembled and copied to `..\arculator\hostfs\!Tipsy` (= D:\archie\mine\arculator\hostfs).
+- Rest of the chain: vasm -> `build\tipsy-cube.o`, vlink -> `build\tipsy-cube.bin`, Shrinkler -> `build\tipsy-cube.shri`, then `!Tipsy\` is assembled and copied to `..\arculator\hostfs\Builds\!Tipsy` (= D:\archie\mine\arculator\hostfs\Builds).
 - Run: Arculator v2.1+, emulate an A3010, sound filter "more reduced" (README). Real hardware: RISC OS 2 or 3.1.
 - `make help` lists the targets.
 
