@@ -18,7 +18,7 @@ scale, lighting experiments, each on its own branch. A scratch/prototype repo.
 
 ## Build and run
 - `make`: runs `make.bat` (works, 2026-11-22): assembles `build\proto-arc.bin`, builds `!Proto` and
-  copies it to `..\arculator\hostfs\!Proto` (D:\archie\mine\arculator\hostfs).
+  copies it to `..\arculator\hostfs\Builds\!Proto` (D:\archie\mine\arculator\hostfs\Builds).
 - `data\tun2.bin` is kept as committed (the Python 2 table). `make.bat` no longer regenerates it, because
   `bin\tunnel_texture.py` under Python 3 differs in 8 of 40960 bytes on the 45-degree diagonals. The
   command is left as a `rem` line in `make.bat` if you ever want to regenerate it.

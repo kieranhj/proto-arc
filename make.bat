@@ -25,7 +25,7 @@ copy build\proto-arc.bin "%FOLDER%\!RunImage,ff8"
 copy data\music\Arc-NIC10.mod "%FOLDER%\Music,001"
 
 echo Copying !folder...
-set HOSTFS=..\arculator\hostfs
+set HOSTFS=..\arculator\hostfs\Builds
 if EXIST "%HOSTFS%\%FOLDER%" del /Q "%HOSTFS%\%FOLDER%"
 if NOT EXIST "%HOSTFS%\%FOLDER%" mkdir "%HOSTFS%\%FOLDER%"
 copy "%FOLDER%\*.*" "%HOSTFS%\%FOLDER%"
